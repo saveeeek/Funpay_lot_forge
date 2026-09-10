@@ -1,0 +1,2795 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lot Forge — Автоматизация и массовое создание лотов FunPay (Python 3 / requests / bs4)</title>
+<meta name="description" content="Готовый Python-скрипт и интерактивный конфигуратор массового создания лотов FunPay: сессия с куки, парсинг CSRF/node_id, настраиваемый шаг цены и количество лотов, антифрод-паузы 3.5-7.5с.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style type="text/tailwindcss">
+@theme {
+  --color-ink:      #07080d;
+  --color-surface:  #0b0d14;
+  --color-panel:    #0f121c;
+  --color-card:     #131724;
+  --color-edge:     #1f2438;
+  --color-edge-lit: #2e3552;
+  --color-gold:     #f2b234;
+  --color-goldx:    #ffd166;
+  --color-cream:    #edeef4;
+  --color-dim:      #9aa0b8;
+  --color-faint:    #5b6172;
+  --color-mint:     #4ade80;
+  --color-rose:     #f87171;
+  --color-azure:    #60a5fa;
+  --font-display:   "Unbounded", system-ui, sans-serif;
+  --font-body:      "Manrope", system-ui, sans-serif;
+  --font-mono:      "JetBrains Mono", ui-monospace, monospace;
+}
+</style>
+
+<style>
+  html {
+    scroll-padding-top: 84px;
+    background-color: #07080d;
+  }
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-cream);
+    font-family: var(--font-body);
+    overflow-x: hidden;
+  }
+  ::selection {
+    background: var(--color-gold);
+    color: #07080d;
+  }
+
+  /* Text FX */
+  .stroke-text { -webkit-text-stroke: 1.5px rgba(242,178,52,.9); color: transparent; }
+  .stroke-faint { -webkit-text-stroke: 1px rgba(237,238,244,.15); color: transparent; }
+  .grad-gold {
+    background: linear-gradient(110deg, #fff2cc 0%, #f2b234 45%, #d98218 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .grad-gold-subtle {
+    background: linear-gradient(135deg, #ffd166 0%, #f2b234 100%);
+  }
+
+  /* Grid & Glows */
+  .hero-grid {
+    background-image:
+      linear-gradient(rgba(237,238,244,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(237,238,244,.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 80% 65% at 50% 35%, black 25%, transparent 75%);
+  }
+  .glow-gold { background: radial-gradient(closest-side, rgba(242,178,52,.14), transparent 75%); }
+  .glow-blue { background: radial-gradient(closest-side, rgba(96,165,250,.10), transparent 75%); }
+
+  /* Typography utilities */
+  .font-700 { font-weight: 700; }
+  .font-800 { font-weight: 800; }
+  .font-900 { font-weight: 900; }
+  .mono-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+  }
+
+  /* Code Editor Window */
+  .code-text {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+  .code-scroll::-webkit-scrollbar,
+  .sim-scroll::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .code-scroll::-webkit-scrollbar-thumb,
+  .sim-scroll::-webkit-scrollbar-thumb {
+    background: #252b40;
+    border-radius: 6px;
+  }
+  .code-scroll::-webkit-scrollbar-track,
+  .sim-scroll::-webkit-scrollbar-track {
+    background: #090b12;
+  }
+
+  /* hljs custom theme */
+  .hljs { background: transparent; color: #d6dbed; }
+  .hljs-comment, .hljs-quote { color: #555d77; font-style: italic; }
+  .hljs-string, .hljs-doctag { color: #86efac; }
+  .hljs-keyword, .hljs-selector-tag { color: #c084fc; font-weight: 600; }
+  .hljs-number { color: #fb923c; }
+  .hljs-literal { color: #f472b6; }
+  .hljs-title, .hljs-title.function_ { color: #60a5fa; font-weight: 600; }
+  .hljs-title.class_ { color: #ffd166; font-weight: 700; }
+  .hljs-built_in { color: #38bdf8; }
+  .hljs-meta { color: #f2b234; }
+  .hljs-attr, .hljs-attribute { color: #93c5fd; }
+  .hljs-subst { color: #e2e8f0; }
+  .hljs-params { color: #cbd5e1; }
+
+  /* Interactive elements & hover */
+  .card-hover {
+    transition: transform .3s cubic-bezier(.16,1,.3,1), border-color .3s, box-shadow .3s;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    border-color: rgba(242,178,52,.4);
+    box-shadow: 0 12px 30px -10px rgba(0,0,0,.6);
+  }
+
+  .btn-gold {
+    transition: transform .25s cubic-bezier(.16,1,.3,1), box-shadow .25s, filter .25s;
+  }
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px -8px rgba(242,178,52,.5);
+    filter: brightness(1.05);
+  }
+  .btn-gold:active {
+    transform: translateY(0);
+  }
+
+  .btn-ghost {
+    transition: border-color .25s, background .25s, color .25s, transform .25s cubic-bezier(.16,1,.3,1);
+  }
+  .btn-ghost:hover {
+    transform: translateY(-2px);
+    border-color: rgba(242,178,52,.5);
+    background: rgba(242,178,52,.06);
+  }
+  .btn-ghost:active {
+    transform: translateY(0);
+  }
+
+  /* Live dot */
+  @keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); }
+    70% { box-shadow: 0 0 0 7px rgba(74,222,128,0); }
+  }
+  .dot-live { animation: pulseDot 1.8s infinite; }
+
+  /* Blinking caret in sim */
+  @keyframes blink { 0%,49% {opacity:1} 50%,100% {opacity:0} }
+  .caret::after { content:" ▌"; color: var(--color-gold); animation: blink 1s steps(1) infinite; }
+
+  /* Input styling */
+  .custom-input {
+    background: #090b12;
+    border: 1px solid var(--color-edge);
+    color: var(--color-cream);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .custom-input:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgba(242,178,52,.15);
+  }
+
+  /* Range slider */
+  input[type=range] {
+    accent-color: var(--color-gold);
+  }
+
+  .danger-stripes {
+    background-image: repeating-linear-gradient(-45deg, rgba(248,113,113,.15) 0 12px, transparent 12px 24px);
+  }
+
+  /* ══════════ GLOWING CUSTOM CURSOR ══════════ */
+  #cursor-dot, #cursor-ring {
+    position: fixed; top: 0; left: 0;
+    pointer-events: none;
+    border-radius: 999px;
+    z-index: 95;
+    will-change: transform;
+  }
+  #cursor-dot {
+    width: 7px; height: 7px;
+    background: var(--color-gold);
+    box-shadow: 0 0 14px 3px rgba(242,178,52,.9);
+  }
+  #cursor-ring {
+    width: 38px; height: 38px;
+    border: 1.5px solid rgba(242,178,52,.55);
+    box-shadow:
+      0 0 22px rgba(242,178,52,.35),
+      inset 0 0 14px rgba(242,178,52,.12);
+    transition: width .3s cubic-bezier(.16,1,.3,1), height .3s cubic-bezier(.16,1,.3,1),
+                border-color .3s, box-shadow .3s, background .3s;
+  }
+  #cursor-ring.grow {
+    width: 68px; height: 68px;
+    border-color: rgba(255,209,102,.95);
+    background: rgba(242,178,52,.08);
+    box-shadow:
+      0 0 38px rgba(242,178,52,.55),
+      inset 0 0 18px rgba(242,178,52,.18);
+  }
+  #cursor-ring.press {
+    width: 26px; height: 26px;
+    border-color: var(--color-gold);
+  }
+  @media (pointer: coarse) { #cursor-dot, #cursor-ring { display: none; } }
+
+  /* ══════════ SCROLL REVEAL & ENTRANCE ANIMATIONS ══════════ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1);
+    will-change: opacity, transform;
+  }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @keyframes loadUp {
+    from { opacity: 0; transform: translateY(26px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .load-anim { animation: loadUp .9s cubic-bezier(.16,1,.3,1) both; }
+
+  @keyframes softFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-9px); }
+  }
+  .soft-float { animation: softFloat 7s ease-in-out infinite; }
+
+  @keyframes chipPop {
+    0%   { transform: scale(.6); opacity: 0; }
+    100% { transform: scale(1);  opacity: 1; }
+  }
+  .chip-pop { animation: chipPop .35s cubic-bezier(.16,1,.3,1) both; }
+
+  /* ══════════ LIGHT THEME ══════════ */
+  html.light {
+    --color-ink:      #e9edf4;
+    --color-surface:  #f7fafc;
+    --color-panel:    #ffffff;
+    --color-card:     #ffffff;
+    --color-edge:     #dbe2ee;
+    --color-edge-lit: #c4cede;
+    --color-gold:     #c8871a;
+    --color-goldx:    #e0a832;
+    --color-cream:    #1b2130;
+    --color-dim:      #4d576f;
+    --color-faint:    #7d87a0;
+    --color-mint:     #15803d;
+    --color-rose:     #dc2626;
+    --color-azure:    #2563eb;
+  }
+  html.light body { transition: background-color .45s ease, color .45s ease; }
+  body { transition: background-color .45s ease, color .45s ease; }
+
+  html.light .text-ink { color: #161a24 !important; }
+  html.light .grad-gold {
+    background: linear-gradient(110deg, #a06a10 0%, #c8871a 45%, #8a5a0d 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  html.light .hero-grid {
+    background-image:
+      linear-gradient(rgba(20,26,45,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,26,45,.07) 1px, transparent 1px);
+  }
+  html.light .glow-gold { background: radial-gradient(closest-side, rgba(200,135,26,.12), transparent 75%); }
+  html.light .glow-blue { background: radial-gradient(closest-side, rgba(37,99,235,.08), transparent 75%); }
+  html.light .custom-input {
+    background: #f2f5fa;
+    color: #161b28;
+    border-color: #d5ddea;
+  }
+  html.light .custom-input::placeholder { color: #8b94a9; }
+  html.light kbd { background: #eef2f8; border-color: #d5ddea; }
+  html.light .stroke-faint { -webkit-text-stroke: 1px rgba(27,33,48,.18); }
+
+  /* The code editor & terminal always stay dark in any theme (scoped vars) */
+  #code-window, #sim-window {
+    --color-ink:      #07080d;
+    --color-surface:  #0b0d14;
+    --color-panel:    #0f121c;
+    --color-edge:     #1f2438;
+    --color-edge-lit: #2e3552;
+    --color-gold:     #f2b234;
+    --color-goldx:    #ffd166;
+    --color-cream:    #edeef4;
+    --color-dim:      #9aa0b8;
+    --color-faint:    #5b6172;
+    --color-mint:     #4ade80;
+    --color-rose:     #f87171;
+    --color-azure:    #60a5fa;
+    color-scheme: dark;
+  }
+
+  /* Theme toggle button */
+  #theme-toggle {
+    position: fixed;
+    bottom: 22px;
+    left: 22px;
+    z-index: 85;
+    display: grid;
+    place-items: center;
+    width: 48px; height: 48px;
+    border-radius: 999px;
+    border: 1px solid var(--color-edge-lit);
+    background: var(--color-panel);
+    background: color-mix(in srgb, var(--color-panel) 90%, transparent);
+    backdrop-filter: blur(12px);
+    color: var(--color-gold);
+    box-shadow: 0 8px 26px -8px rgba(0,0,0,.55);
+    transition: transform .3s cubic-bezier(.16,1,.3,1), box-shadow .3s, border-color .3s;
+  }
+  #theme-toggle:hover {
+    transform: scale(1.1) rotate(12deg);
+    border-color: var(--color-gold);
+    box-shadow: 0 10px 30px -8px rgba(242,178,52,.45);
+  }
+</style>
+</head>
+
+<body class="antialiased selection:bg-gold selection:text-ink">
+
+<!-- ══════════════════ GLOWING CURSOR ══════════════════ -->
+<div id="cursor-ring"></div>
+<div id="cursor-dot"></div>
+
+<!-- ══════════════════ THEME TOGGLE ══════════════════ -->
+<button id="theme-toggle" aria-label="Переключить тему" title="Сменить тему">
+  <i data-lucide="sun" class="w-5 h-5"></i>
+</button>
+
+<!-- ══════════════════ TOAST NOTIFICATION ══════════════════ -->
+<div id="toast" class="fixed left-1/2 bottom-8 z-[80] -translate-x-1/2 translate-y-24 opacity-0 pointer-events-none transition-all duration-300">
+  <div class="flex items-center gap-3 rounded-xl border border-edge-lit bg-surface/95 backdrop-blur-md px-5 py-3.5 shadow-2xl shadow-black/80">
+    <span id="toast-icon" class="text-mint"><i data-lucide="check" class="w-5 h-5"></i></span>
+    <span id="toast-text" class="text-sm font-semibold text-cream">Скопировано в буфер обмена</span>
+  </div>
+</div>
+
+<!-- ══════════════════ HEADER / NAVIGATION ══════════════════ -->
+<header id="navbar" class="fixed top-0 inset-x-0 z-50 transition-all duration-300 bg-surface/85 backdrop-blur-lg border-b border-edge">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-[72px]">
+      
+      <!-- Brand Logo -->
+      <a href="#hero" class="flex items-center gap-3 group">
+        <span class="grid place-items-center size-9 rounded-lg bg-gold text-ink font-black shadow-lg shadow-gold/20 group-hover:scale-105 transition-transform">
+          <i data-lucide="hammer" class="w-5 h-5"></i>
+        </span>
+        <div class="flex flex-col">
+          <span class="font-display font-800 tracking-tight text-sm sm:text-base leading-none">LOT<span class="text-gold">·</span>FORGE</span>
+          <span class="mono-label text-[9px] text-dim mt-0.5">FunPay Automator</span>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden lg:flex items-center gap-6 mono-label text-xs text-dim">
+        <a href="#section-pipeline" class="hover:text-gold transition-colors py-2">Конвейер</a>
+        <a href="#section-configurator" class="hover:text-gold transition-colors py-2">Конфигуратор</a>
+        <a href="#section-code" class="hover:text-gold transition-colors py-2">Исходник</a>
+        <a href="#section-downloads" class="hover:text-gold transition-colors py-2">Диски & Git</a>
+        <a href="#section-sim" class="hover:text-gold transition-colors py-2">Симуляция</a>
+        <a href="#section-risks" class="hover:text-gold transition-colors py-2">Риски</a>
+      </nav>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button id="nav-btn-download" class="btn-ghost flex items-center gap-2 rounded-lg border border-edge bg-panel px-3 sm:px-4 py-2 font-mono text-xs font-semibold text-cream">
+          <i data-lucide="download" class="w-4 h-4 text-gold"></i>
+          <span class="hidden sm:inline">Скачать</span> .py
+        </button>
+        <button id="nav-btn-copy" class="btn-gold flex items-center gap-2 rounded-lg bg-gold text-ink font-bold text-xs px-3 sm:px-4 py-2">
+          <i data-lucide="copy" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Скопировать</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════ HERO SECTION ══════════════════ -->
+<section id="hero" class="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+  <div class="absolute inset-0 hero-grid pointer-events-none"></div>
+  <div class="glow-gold absolute -top-40 right-[10%] w-[550px] h-[550px] rounded-full blur-3xl pointer-events-none"></div>
+  <div class="glow-blue absolute bottom-[-100px] left-[-10%] w-[500px] h-[500px] rounded-full blur-3xl pointer-events-none"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    
+    <!-- Meta tag pill -->
+    <div class="inline-flex items-center gap-2 rounded-full border border-edge bg-panel/90 backdrop-blur px-3.5 py-1.5 mb-6">
+      <span class="size-2 rounded-full bg-mint dot-live"></span>
+      <span class="mono-label text-[11px] text-cream">Python 3.10+ · requests · beautifulsoup4</span>
+      <span class="text-faint hidden sm:inline">|</span>
+      <span class="mono-label text-[11px] text-gold hidden sm:inline">FunPay Automated Lot Creator</span>
+    </div>
+
+    <!-- Title and main pitch -->
+    <div class="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+      
+      <div class="lg:col-span-8">
+        <h1 class="font-display font-900 tracking-tight text-4xl sm:text-6xl xl:text-7xl leading-[1.08] mb-6">
+          Массовое создание<br>
+          <span class="grad-gold">лотов на FunPay</span>
+        </h1>
+        
+        <p class="text-base sm:text-lg md:text-xl text-dim max-w-2xl leading-relaxed mb-8">
+          Автоматический генератор предложений с динамическим шагом цены, автоматическим сбором <code class="text-gold font-mono font-semibold bg-panel px-1.5 py-0.5 rounded border border-edge">csrf_token</code> и <code class="text-gold font-mono font-semibold bg-panel px-1.5 py-0.5 rounded border border-edge">node_id</code>, антифрод-паузами и логированием каждого запроса.
+        </p>
+
+        <!-- CTAs -->
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
+          <a href="#section-configurator" class="btn-gold inline-flex items-center gap-2.5 rounded-xl bg-gold text-ink font-bold px-6 py-3.5 text-sm">
+            <i data-lucide="sliders" class="w-4.5 h-4.5"></i> Настроить и сгенерировать
+          </a>
+          <a href="#section-code" class="btn-ghost inline-flex items-center gap-2.5 rounded-xl border border-edge bg-panel px-6 py-3.5 text-sm font-semibold text-cream">
+            <i data-lucide="code-2" class="w-4.5 h-4.5 text-gold"></i> Открыть код скрипта
+          </a>
+          <a href="#section-downloads" class="btn-ghost inline-flex items-center gap-2.5 rounded-xl border border-edge bg-panel px-5 py-3.5 text-sm font-semibold text-dim hover:text-cream">
+            <i data-lucide="cloud-download" class="w-4.5 h-4.5 text-azure"></i> Диски / Git
+          </a>
+        </div>
+      </div>
+
+      <!-- Quick summary card -->
+      <div class="lg:col-span-4">
+        <div class="rounded-2xl border border-edge-lit bg-panel/80 p-6 backdrop-blur shadow-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-gold/5 rounded-full blur-2xl pointer-events-none"></div>
+          
+          <div class="flex items-center justify-between pb-4 mb-4 border-b border-edge">
+            <span class="mono-label text-dim">Характеристики скрипта</span>
+            <span class="inline-flex items-center gap-1.5 text-xs font-mono text-mint bg-mint/10 border border-mint/20 px-2 py-0.5 rounded-full">
+              <span class="size-1.5 rounded-full bg-mint"></span> Готов к бою
+            </span>
+          </div>
+
+          <dl class="space-y-3.5 text-sm font-mono">
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Стек:</dt>
+              <dd class="text-cream font-semibold">requests + bs4</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Авторизация:</dt>
+              <dd class="text-gold">golden_key + PHPSESSID</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Парсинг токенов:</dt>
+              <dd class="text-azure">GET action/HTML (AJAX)</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Шаг цены:</dt>
+              <dd id="hero-step-stat" class="text-mint font-bold">1 ₽ (настраиваемый)</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Антифрод-пауза:</dt>
+              <dd class="text-cream font-bold">3.5 – 7.5 сек</dd>
+            </div>
+            <div class="flex items-center justify-between">
+              <dt class="text-dim">Логирование:</dt>
+              <dd class="text-mint">[+] / [-] статус коды</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Live Parameters Bar -->
+    <div class="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+      <div class="rounded-xl border border-edge bg-panel/50 p-4">
+        <div class="mono-label text-faint mb-1">Диапазон цен</div>
+        <div id="stat-range-text" class="font-display font-700 text-xl text-gold">60 → 70 ₽</div>
+      </div>
+      <div class="rounded-xl border border-edge bg-panel/50 p-4">
+        <div class="mono-label text-faint mb-1">Шаг цены</div>
+        <div id="stat-step-text" class="font-display font-700 text-xl text-cream">1 ₽</div>
+      </div>
+      <div class="rounded-xl border border-edge bg-panel/50 p-4">
+        <div class="mono-label text-faint mb-1">Итого лотов</div>
+        <div id="stat-total-text" class="font-display font-700 text-xl text-mint">11 лотов</div>
+      </div>
+      <div class="rounded-xl border border-edge bg-panel/50 p-4">
+        <div class="mono-label text-faint mb-1">Примерное время</div>
+        <div id="stat-time-text" class="font-display font-700 text-xl text-azure">~60 сек</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ PIPELINE SECTION ══════════════════ -->
+<section id="section-pipeline" class="py-20 md:py-28 border-t border-edge bg-surface/50 scroll-mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="max-w-2xl mb-14">
+      <div class="mono-label text-gold mb-2">01 — Архитектура и логика</div>
+      <h2 class="font-display font-800 text-3xl sm:text-4xl lg:text-5xl tracking-tight">
+        Конвейер работы <span class="stroke-text">скрипта</span>
+      </h2>
+      <p class="text-dim text-sm sm:text-base mt-4 leading-relaxed">
+        Скрипт разбит на чистые независимые функции с полной обработкой исключений <code class="text-gold font-mono text-xs">try/except</code>.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      
+      <!-- Card 1 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-gold/10 text-gold font-mono font-bold text-sm">01</span>
+          <span class="mono-label text-[10px] text-faint">Auth Module</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Сессия и заголовки</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          Создаётся экземпляр <code class="font-mono text-xs text-gold">requests.Session()</code>. В него загружаются куки <code class="font-mono text-xs text-cream">golden_key</code> и <code class="font-mono text-xs text-cream">PHPSESSID</code>, а также заголовки <code class="font-mono text-xs text-dim">X-Requested-With</code>, <code class="font-mono text-xs text-dim">Origin</code>, <code class="font-mono text-xs text-dim">Referer</code> и маскирующий User-Agent.
+        </p>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-azure/10 text-azure font-mono font-bold text-sm">02</span>
+          <span class="mono-label text-[10px] text-faint">HTML Parser</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Сбор токенов и формы</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          GET-запрос страницы категории. BeautifulSoup парсит HTML, находит форму лота, извлекает скрытые токены <code class="font-mono text-xs text-mint">csrf_token</code>, идентификатор узла <code class="font-mono text-xs text-mint">node_id</code> и все дефолтные поля категории.
+        </p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-mint/10 text-mint font-mono font-bold text-sm">03</span>
+          <span class="mono-label text-[10px] text-faint">Price Loop</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Цикл шага цен</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          Итератор формирует диапазон от <code class="font-mono text-xs text-cream">min_price</code> до <code class="font-mono text-xs text-cream">max_price</code> с заданным шагом (по ТЗ — 1 рубль или любой кастомный) и ограничением максимального количества лотов.
+        </p>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-goldx/10 text-goldx font-mono font-bold text-sm">04</span>
+          <span class="mono-label text-[10px] text-faint">Payload Engine</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Сборка FormData</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          Для каждого лота собирается словарь данных: <code class="font-mono text-xs text-cream">offer_id=0</code> (создание нового), <code class="font-mono text-xs text-cream">fields[summary]</code>, <code class="font-mono text-xs text-cream">fields[desc]</code>, цена, количество и служебные флаги.
+        </p>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/10 text-rose font-mono font-bold text-sm">05</span>
+          <span class="mono-label text-[10px] text-faint">Anti-Fraud</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Антифрод-паузы</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          Между POST-запросами вызывается <code class="font-mono text-xs text-rose">time.sleep(random.uniform(3.5, 7.5))</code>. Плавающий интервал имитирует ручные действия продавца и предотвращает срабатывание WAF / Rate Limit.
+        </p>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 sm:p-7 relative">
+        <div class="flex items-center justify-between mb-5">
+          <span class="grid place-items-center size-10 rounded-xl bg-mint/10 text-mint font-mono font-bold text-sm">06</span>
+          <span class="mono-label text-[10px] text-faint">Console Logger</span>
+        </div>
+        <h3 class="font-display font-700 text-lg mb-2.5">Консольный отчёт</h3>
+        <p class="text-sm text-dim leading-relaxed">
+          После каждого POST-запроса выводится статус: <code class="font-mono text-xs text-mint">[+] Успешно создан лот за X руб.</code> или <code class="font-mono text-xs text-rose">[-] Ошибка... Статус 403/500</code>. В конце — финальная сводка.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ CONFIGURATOR / GENERATOR SECTION ══════════════════ -->
+<section id="section-configurator" class="py-20 md:py-28 border-t border-edge scroll-mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+      <div>
+        <div class="mono-label text-gold mb-2">02 — Интерактивный генератор</div>
+        <h2 class="font-display font-800 text-3xl sm:text-4xl lg:text-5xl tracking-tight">
+          Настройка параметров <span class="grad-gold">скрипта</span>
+        </h2>
+        <p class="text-dim text-sm sm:text-base mt-2">
+          Изменяйте цены, шаг, количество лотов и куки — Python-код перегенерируется моментально на лету!
+        </p>
+      </div>
+
+      <!-- Presets quick buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="mono-label text-faint mr-1 text-[10px]">Пресеты:</span>
+        <button type="button" data-preset="default" class="preset-btn px-3 py-1.5 rounded-lg border border-gold/40 bg-gold/10 font-mono text-xs text-gold hover:bg-gold/20 transition-colors">
+          Классика ТЗ (60-70 ₽, шаг 1)
+        </button>
+        <button type="button" data-preset="test" class="preset-btn px-3 py-1.5 rounded-lg border border-edge bg-panel font-mono text-xs text-dim hover:text-cream hover:border-edge-lit transition-colors">
+          Тест (3 лота: 60-62 ₽)
+        </button>
+        <button type="button" data-preset="step5" class="preset-btn px-3 py-1.5 rounded-lg border border-edge bg-panel font-mono text-xs text-dim hover:text-cream hover:border-edge-lit transition-colors">
+          Шаг 5 ₽ (50-100 ₽)
+        </button>
+        <button type="button" data-preset="step10" class="preset-btn px-3 py-1.5 rounded-lg border border-edge bg-panel font-mono text-xs text-dim hover:text-cream hover:border-edge-lit transition-colors">
+          Шаг 10 ₽ (100-300 ₽)
+        </button>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-12 gap-8">
+      
+      <!-- Controls Column -->
+      <div class="lg:col-span-7 space-y-6">
+        
+        <!-- Pricing Block -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-6">
+          <div class="flex items-center justify-between pb-3 border-b border-edge">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="russian-ruble" class="w-5 h-5 text-gold"></i> Настройка цен и шага
+            </span>
+            <span class="mono-label text-xs text-gold" id="config-calc-summary">11 лотов</span>
+          </div>
+
+          <!-- Min / Max price -->
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block mono-label text-xs text-dim mb-2" for="input-min-price">
+                Минимальная цена (min_price, ₽)
+              </label>
+              <input type="number" id="input-min-price" value="60" min="1" max="999999" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-sm">
+            </div>
+            <div>
+              <label class="block mono-label text-xs text-dim mb-2" for="input-max-price">
+                Максимальная цена (max_price, ₽)
+              </label>
+              <input type="number" id="input-max-price" value="70" min="1" max="999999" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-sm">
+            </div>
+          </div>
+
+          <!-- Price Step -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="mono-label text-xs text-dim" for="input-price-step">
+                Шаг цены (price_step, ₽)
+              </label>
+              <span class="font-mono text-xs text-gold font-bold" id="label-step-val">1 ₽</span>
+            </div>
+            
+            <div class="grid grid-cols-6 gap-2 mb-3">
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-gold bg-gold/15 font-mono text-xs font-bold text-gold text-center" data-step="1">1 ₽</button>
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40" data-step="2">2 ₽</button>
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40" data-step="5">5 ₽</button>
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40" data-step="10">10 ₽</button>
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40" data-step="25">25 ₽</button>
+              <button type="button" class="step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40" data-step="50">50 ₽</button>
+            </div>
+
+            <input type="number" id="input-price-step" value="1" min="1" max="10000" class="custom-input w-full rounded-xl px-4 py-2 font-mono text-xs text-dim" placeholder="Или введите свой шаг вручную...">
+          </div>
+
+          <!-- Max lots limit / Mode -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="mono-label text-xs text-dim" for="input-max-lots">
+                Ограничение количества лотов (0 = без лимита, все по шагу)
+              </label>
+              <span class="font-mono text-xs text-mint" id="label-max-lots-val">Все в диапазоне</span>
+            </div>
+            <input type="number" id="input-max-lots" value="0" min="0" max="500" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-sm" placeholder="0 = создать все возможные лоты в диапазоне">
+          </div>
+
+        </div>
+
+        <!-- Lot Details Block -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-4">
+          <div class="pb-3 border-b border-edge">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="tag" class="w-5 h-5 text-gold"></i> Описание и категория
+            </span>
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-category-url">
+              URL категории с формой FunPay
+            </label>
+            <input type="text" id="input-category-url" value="https://funpay.com/lots/123/" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-xs text-cream">
+          </div>
+
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block mono-label text-xs text-dim mb-2" for="input-lot-title">
+                Название лота (fields[summary])
+              </label>
+              <input type="text" id="input-lot-title" value="Личный аккаунт / Быстрая выдача" class="custom-input w-full rounded-xl px-4 py-2.5 text-sm text-cream">
+            </div>
+            <div>
+              <label class="block mono-label text-xs text-dim mb-2" for="input-amount">
+                Запас (amount)
+              </label>
+              <input type="text" id="input-amount" value="9999" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-sm text-cream">
+            </div>
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-lot-desc">
+              Описание лота (fields[desc]) — многострочное, любые кавычки допустимы
+            </label>
+            <textarea id="input-lot-desc" rows="7" class="custom-input w-full rounded-xl px-4 py-2.5 text-sm text-cream leading-relaxed">Моментальная доставка 24/7.
+
+• Полный доступ со сменой всех данных (почта, пароль).
+• Гарантия безопасности и замена в случае проблем.
+• Оплата: любая карта, СБП, криптовалюта.
+
+Перед покупкой пишите в чат — уточню наличие.</textarea>
+            <p class="mt-2 text-[11px] font-mono text-faint">
+              В Python-код описание попадает внутрь тройных кавычек <code class="text-gold">"""..."""</code> — переносы строк сохраняются полностью.
+            </p>
+          </div>
+        </div>
+
+        <!-- FunPay Category Parser Block -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-4">
+          <div class="pb-3 border-b border-edge flex flex-wrap items-center justify-between gap-2">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="layout-grid" class="w-5 h-5 text-gold"></i> Категории FunPay (парсер)
+            </span>
+            <span class="mono-label text-[10px] text-faint">node_id / подкатегории</span>
+          </div>
+
+          <p class="text-xs text-dim leading-relaxed">
+            Вставьте ссылку на игру/категорию FunPay либо просто её числовой ID — сайт загрузит страницу через анонимный прокси с браузерными заголовками и вытащит все доступные подкатегории с их <code class="text-gold font-mono">node_id</code>.
+          </p>
+
+          <div class="flex flex-col sm:flex-row gap-2">
+            <input type="text" id="input-category-query" value="https://funpay.com/lots/265/" placeholder="https://funpay.com/lots/265/ или 265" class="custom-input flex-1 rounded-xl px-4 py-2.5 font-mono text-xs text-cream">
+            <button id="btn-parse-categories" class="btn-gold flex items-center justify-center gap-2 rounded-xl bg-gold text-ink font-bold px-5 py-2.5 text-xs whitespace-nowrap">
+              <i data-lucide="search" class="w-4 h-4"></i> Загрузить категории
+            </button>
+          </div>
+
+          <div id="cat-parse-status" class="hidden font-mono text-xs px-3 py-2 rounded-lg border"></div>
+
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="mono-label text-xs text-dim">Найденные категории (клик — выбрать):</span>
+              <span class="mono-label text-[10px] text-faint" id="cat-count-label">не загружено</span>
+            </div>
+            <div id="category-list" class="flex flex-wrap gap-2 p-3 rounded-xl bg-surface border border-edge min-h-[68px] max-h-52 overflow-y-auto">
+              <span class="text-xs font-mono text-faint">Нажмите «Загрузить категории» или добавьте свою вручную ниже.</span>
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-12 gap-2 items-end">
+            <div class="sm:col-span-6">
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-manual-cat-name">Своя категория — название</label>
+              <input type="text" id="input-manual-cat-name" placeholder="Например: Подписка Discord Nitro" class="custom-input w-full rounded-xl px-3 py-2 text-xs text-cream">
+            </div>
+            <div class="sm:col-span-3">
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-manual-cat-id">node_id</label>
+              <input type="text" id="input-manual-cat-id" placeholder="1142" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-xs text-cream">
+            </div>
+            <div class="sm:col-span-3">
+              <button id="btn-add-category" class="btn-ghost w-full flex items-center justify-center gap-1.5 rounded-xl border border-edge bg-surface px-3 py-2 font-mono text-xs text-cream">
+                <i data-lucide="plus" class="w-3.5 h-3.5 text-gold"></i> Добавить
+              </button>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-surface border border-gold/25">
+            <span class="mono-label text-[10px] text-dim">Выбранная категория:</span>
+            <span id="selected-category-label" class="font-mono text-xs text-gold font-bold">не выбрана (node_id берётся из формы)</span>
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-node-id">
+              node_id вручную (пусто = автоопределение из HTML-формы)
+            </label>
+            <input type="text" id="input-node-id" value="" placeholder="Например: 1142" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-sm text-cream">
+          </div>
+        </div>
+
+        <!-- Category-specific extra fields -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-4">
+          <div class="pb-3 border-b border-edge flex flex-wrap items-center justify-between gap-2">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="list-plus" class="w-5 h-5 text-gold"></i> Доп. поля категории
+            </span>
+            <button id="btn-add-extra-field" class="btn-ghost flex items-center gap-1.5 rounded-lg border border-edge bg-surface px-3 py-1.5 font-mono text-[11px] text-cream">
+              <i data-lucide="plus" class="w-3.5 h-3.5 text-gold"></i> Добавить поле
+            </button>
+          </div>
+
+          <p class="text-xs text-dim leading-relaxed">
+            У разных категорий FunPay свои обязательные поля: тип подписки, срок, сервер, платформа, сторона. Скрипт печатает все найденные поля и варианты <code class="text-gold font-mono">&lt;select&gt;</code> при запуске (опция «дамп полей»), а здесь вы задаёте нужные значения.
+          </p>
+
+          <div id="extra-fields-list" class="space-y-2"></div>
+
+          <div class="flex flex-wrap gap-2">
+            <button class="quick-field-btn px-2.5 py-1 rounded-lg border border-edge bg-surface font-mono text-[11px] text-dim hover:text-gold hover:border-gold/40 transition-colors" data-fname="fields[type]" data-fvalue="1">+ fields[type] (тип/подписка)</button>
+            <button class="quick-field-btn px-2.5 py-1 rounded-lg border border-edge bg-surface font-mono text-[11px] text-dim hover:text-gold hover:border-gold/40 transition-colors" data-fname="server_id" data-fvalue="">+ server_id (сервер)</button>
+            <button class="quick-field-btn px-2.5 py-1 rounded-lg border border-edge bg-surface font-mono text-[11px] text-dim hover:text-gold hover:border-gold/40 transition-colors" data-fname="fields[side]" data-fvalue="">+ fields[side] (сторона)</button>
+            <button class="quick-field-btn px-2.5 py-1 rounded-lg border border-edge bg-surface font-mono text-[11px] text-dim hover:text-gold hover:border-gold/40 transition-colors" data-fname="fields[platform]" data-fvalue="">+ fields[platform]</button>
+            <button class="quick-field-btn px-2.5 py-1 rounded-lg border border-edge bg-surface font-mono text-[11px] text-dim hover:text-gold hover:border-gold/40 transition-colors" data-fname="fields[period]" data-fvalue="">+ fields[period] (срок)</button>
+          </div>
+        </div>
+
+        <!-- Auth & Anti-fraud Block -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-4">
+          <div class="pb-3 border-b border-edge flex flex-wrap items-center justify-between gap-2">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-5 h-5 text-gold"></i> Авторизация, CSRF и защита
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-xs font-mono text-gold bg-gold/10 border border-gold/20 px-2.5 py-0.5 rounded-full">
+              <i data-lucide="timer" class="w-3.5 h-3.5"></i> Антифрод активен
+            </span>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block mono-label text-xs text-dim mb-2" for="input-golden-key">
+                golden_key
+              </label>
+              <input type="text" id="input-golden-key" value="ВСТАВЬ_GOLDEN_KEY" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-xs text-cream">
+            </div>
+            <div>
+              <label class="block mono-label text-xs text-dim mb-2" for="input-phpsessid">
+                PHPSESSID
+              </label>
+              <input type="text" id="input-phpsessid" value="ВСТАВЬ_PHPSESSID" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-xs text-cream">
+            </div>
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-csrf-token">
+              csrf_token вручную <span class="text-mint">(пусто = автопарсинг из data-app-data / input / meta)</span>
+            </label>
+            <input type="text" id="input-csrf-token" value="" placeholder="Оставьте пустым — скрипт найдёт токен сам и обновит его при 428" class="custom-input w-full rounded-xl px-4 py-2.5 font-mono text-xs text-cream">
+            <p class="mt-2 text-[11px] font-mono text-faint">
+              Ошибка <span class="text-rose">428 Precondition Required</span> = протухший csrf. Скрипт сам перезапрашивает токен и повторяет POST.
+            </p>
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-user-agent">
+              User-Agent
+            </label>
+            <input type="text" id="input-user-agent" value="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" class="custom-input w-full rounded-xl px-4 py-2 font-mono text-[11px] text-dim">
+          </div>
+
+          <div>
+            <label class="block mono-label text-xs text-dim mb-2" for="input-proxy">
+              Прокси (пусто = прямое соединение)
+            </label>
+            <input type="text" id="input-proxy" value="" placeholder="http://user:pass@ip:port  или  socks5://ip:port" class="custom-input w-full rounded-xl px-4 py-2 font-mono text-[11px] text-dim">
+          </div>
+
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-pause-min">Пауза min (сек)</label>
+              <input type="number" step="0.1" min="1" id="input-pause-min" value="3.5" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-sm text-cream">
+            </div>
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-pause-max">Пауза max (сек)</label>
+              <input type="number" step="0.1" min="1" id="input-pause-max" value="7.5" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-sm text-cream">
+            </div>
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-retries">Повторов при 428/429</label>
+              <input type="number" min="0" max="10" id="input-retries" value="2" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-sm text-cream">
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-3 pt-1">
+            <label class="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-edge bg-surface">
+              <input type="checkbox" id="input-dump-fields" checked class="size-4 accent-[#f2b234]">
+              <span class="text-xs text-dim">Печатать все поля формы и <code class="text-gold font-mono">&lt;select&gt;</code></span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-edge bg-surface">
+              <input type="checkbox" id="input-active-lot" checked class="size-4 accent-[#f2b234]">
+              <span class="text-xs text-dim">Активировать лоты сразу (active=on)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Translation Block -->
+        <div class="rounded-2xl border border-edge bg-panel p-6 space-y-4">
+          <div class="pb-3 border-b border-edge flex flex-wrap items-center justify-between gap-2">
+            <span class="font-display font-700 text-base flex items-center gap-2">
+              <i data-lucide="languages" class="w-5 h-5 text-gold"></i> Автоперевод описаний
+            </span>
+            <span class="mono-label text-[10px] text-faint">Google / Yandex Translate</span>
+          </div>
+
+          <p class="text-xs text-dim leading-relaxed">
+            FunPay хранит два языка карточки: <code class="text-gold font-mono">[ru]</code> и <code class="text-gold font-mono">[en]</code>. Скрипт переводит название и описание один раз перед циклом и кэширует результат, чтобы не спамить переводчик.
+          </p>
+
+          <label class="flex items-center gap-2.5 cursor-pointer p-2.5 rounded-lg border border-edge bg-surface">
+            <input type="checkbox" id="input-auto-translate" checked class="size-4 accent-[#f2b234]">
+            <span class="text-xs text-dim">Включить автоперевод для англоязычной версии лота</span>
+          </label>
+
+          <div class="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="select-translator">Провайдер</label>
+              <select id="select-translator" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-xs text-cream">
+                <option value="auto">auto (Google → Yandex)</option>
+                <option value="google">Google Translate</option>
+                <option value="yandex">Yandex Translate</option>
+              </select>
+            </div>
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-lang-from">Из языка</label>
+              <input type="text" id="input-lang-from" value="ru" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-xs text-cream">
+            </div>
+            <div>
+              <label class="block mono-label text-[10px] text-dim mb-1.5" for="input-lang-to">В язык</label>
+              <input type="text" id="input-lang-to" value="en" class="custom-input w-full rounded-xl px-3 py-2 font-mono text-xs text-cream">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Live Calculation Card & Preview -->
+      <div class="lg:col-span-5 space-y-6">
+        
+        <div class="rounded-2xl border border-edge-lit bg-panel p-6 space-y-6 sticky top-24 shadow-2xl">
+          
+          <div class="flex items-center justify-between pb-3 border-b border-edge">
+            <span class="mono-label text-gold flex items-center gap-2">
+              <i data-lucide="calculator" class="w-4 h-4"></i> Расчёт генератора
+            </span>
+            <span class="mono-label text-xs text-mint font-bold" id="calc-badge">Синхронизировано</span>
+          </div>
+
+          <!-- Big Counter -->
+          <div class="p-5 rounded-xl bg-surface border border-edge text-center">
+            <div class="mono-label text-faint mb-1">Сформировано предложений</div>
+            <div id="calc-lots-count" class="font-display font-900 text-5xl text-gold">11</div>
+            <div id="calc-lots-range" class="text-xs font-mono text-dim mt-1.5">от 60 ₽ до 70 ₽ с шагом 1 ₽</div>
+          </div>
+
+          <!-- Price array list preview -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="mono-label text-xs text-dim">Массив генерируемых цен:</span>
+              <span class="mono-label text-[10px] text-faint" id="calc-array-len">11 элементов</span>
+            </div>
+            <div id="calc-price-chips" class="flex flex-wrap gap-1.5 p-3 rounded-xl bg-surface border border-edge max-h-36 overflow-y-auto">
+              <!-- Dynamically filled -->
+            </div>
+          </div>
+
+          <!-- Timing estimate -->
+          <div class="p-4 rounded-xl bg-surface border border-edge space-y-2 text-xs font-mono">
+            <div class="flex items-center justify-between">
+              <span class="text-dim">Средняя пауза антифрода:</span>
+              <span class="text-cream">~5.5 сек</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-dim">Примерная длительность:</span>
+              <span id="calc-est-time" class="text-azure font-bold">~60 сек (~1.0 мин)</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-dim">POST-эндпоинт:</span>
+              <span class="text-mint">/lots/offerSave</span>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="space-y-2.5 pt-2">
+            <button id="btn-download-py" class="btn-gold w-full flex items-center justify-center gap-2.5 rounded-xl bg-gold text-ink font-bold py-3.5 text-sm">
+              <i data-lucide="download" class="w-4.5 h-4.5"></i> Скачать готовый funpay_lots.py
+            </button>
+            <button id="btn-copy-py" class="btn-ghost w-full flex items-center justify-center gap-2.5 rounded-xl border border-edge bg-surface font-bold py-3 text-sm text-cream">
+              <i data-lucide="copy" class="w-4.5 h-4.5 text-gold"></i> Скопировать сгенерированный код
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ SOURCE CODE SECTION ══════════════════ -->
+<section id="section-code" class="py-20 md:py-28 border-t border-edge bg-surface/40 scroll-mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+      <div>
+        <div class="mono-label text-gold mb-2">03 — Полный исходный код</div>
+        <h2 class="font-display font-800 text-3xl sm:text-4xl lg:text-5xl tracking-tight">
+          funpay_lots.py <span class="stroke-text">на Python 3</span>
+        </h2>
+        <p class="text-dim text-sm sm:text-base mt-2">
+          Код автоматически обновляется при любых изменениях в конфигураторе выше.
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <button id="code-btn-copy" class="btn-ghost flex items-center gap-2 rounded-xl border border-edge bg-panel px-4 py-2.5 font-mono text-xs font-semibold text-cream">
+          <i data-lucide="copy" class="w-4 h-4 text-gold"></i> Скопировать код
+        </button>
+        <button id="code-btn-download" class="btn-gold flex items-center gap-2 rounded-xl bg-gold text-ink px-4 py-2.5 font-bold text-xs">
+          <i data-lucide="download" class="w-4 h-4"></i> Скачать .py
+        </button>
+      </div>
+    </div>
+
+    <!-- Code Editor Mockup Window -->
+    <div id="code-window" class="rounded-2xl border border-edge-lit bg-[#090b12] shadow-2xl overflow-hidden">
+      
+      <!-- Window top bar -->
+      <div class="flex items-center justify-between px-4 sm:px-6 h-12 border-b border-edge bg-panel/80">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="size-3 rounded-full bg-[#ff5f56]"></span>
+            <span class="size-3 rounded-full bg-[#ffbd2e]"></span>
+            <span class="size-3 rounded-full bg-[#27c93f]"></span>
+          </div>
+          <span class="text-edge-lit">|</span>
+          <div class="flex items-center gap-2 font-mono text-xs text-cream">
+            <i data-lucide="file-code" class="w-4 h-4 text-gold"></i>
+            <span>funpay_lots.py</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span class="mono-label text-[10px] text-faint hidden sm:inline">UTF-8 · Python 3.10+</span>
+          <span class="size-2 rounded-full bg-mint"></span>
+        </div>
+      </div>
+
+      <!-- Code content with lines gutter -->
+      <div class="code-scroll overflow-auto max-h-[70vh] bg-[#090b12]">
+        <div class="flex min-w-max">
+          <!-- Gutter line numbers -->
+          <pre id="code-gutter" class="code-text select-none text-right text-faint/60 bg-[#07090f] pl-4 sm:pl-6 pr-3 sm:pr-4 py-5 border-r border-edge"></pre>
+          <!-- Syntax highlighted code -->
+          <pre class="py-5 px-4 sm:px-6 flex-1"><code id="python-code-display" class="hljs language-python code-text block"></code></pre>
+        </div>
+      </div>
+
+      <!-- Window footer info -->
+      <div class="px-4 sm:px-6 py-3 border-t border-edge bg-panel/60 flex flex-wrap items-center justify-between text-xs font-mono text-dim gap-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="terminal" class="w-3.5 h-3.5 text-gold"></i>
+          <span>Установка зависимостей: <code class="text-cream bg-surface px-1.5 py-0.5 rounded border border-edge">pip install requests beautifulsoup4</code></span>
+        </div>
+        <div class="text-faint">
+          Запуск: <code class="text-mint bg-surface px-1.5 py-0.5 rounded border border-edge">python funpay_lots.py</code>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ CLOUD DISKS & GIT HUB SECTION ══════════════════ -->
+<section id="section-downloads" class="py-20 md:py-28 border-t border-edge scroll-mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="max-w-3xl mb-12">
+      <div class="mono-label text-gold mb-2">04 — Облачные диски и репозиторий</div>
+      <h2 class="font-display font-800 text-3xl sm:text-4xl lg:text-5xl tracking-tight">
+        Центр загрузки <span class="grad-gold">и репозиториев</span>
+      </h2>
+      <p class="text-dim text-sm sm:text-base mt-2">
+        Выберите удобный способ скачивания готового скрипта: прямое сохранение из браузера, зеркала на Яндекс Диске и Google Drive, или клонирование с GitHub.
+      </p>
+    </div>
+
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      
+      <!-- Direct Browser Download -->
+      <div class="card-hover rounded-2xl border border-gold/30 bg-panel p-6 flex flex-col justify-between relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-gold/10 rounded-full blur-xl pointer-events-none"></div>
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="grid place-items-center size-12 rounded-xl bg-gold/15 text-gold">
+              <i data-lucide="file-down" class="w-6 h-6"></i>
+            </span>
+            <span class="mono-label text-[10px] text-gold bg-gold/10 px-2 py-0.5 rounded">Прямое</span>
+          </div>
+          <h3 class="font-display font-700 text-lg mb-2">Скачать .py</h3>
+          <p class="text-xs text-dim leading-relaxed mb-6">
+            Генерирует чистый готовый файл <code class="text-cream font-mono">funpay_lots.py</code> с вашими параметрами прямо в браузере.
+          </p>
+        </div>
+        <button id="hub-btn-direct" class="btn-gold w-full flex items-center justify-center gap-2 rounded-xl bg-gold text-ink font-bold py-3 text-xs">
+          <i data-lucide="download" class="w-4 h-4"></i> Скачать файл
+        </button>
+      </div>
+
+      <!-- GitHub -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="grid place-items-center size-12 rounded-xl bg-cream/10 text-cream">
+              <i data-lucide="github" class="w-6 h-6"></i>
+            </span>
+            <span class="mono-label text-[10px] text-faint">Git Repo</span>
+          </div>
+          <h3 class="font-display font-700 text-lg mb-2">GitHub Репозиторий</h3>
+          <p class="text-xs text-dim leading-relaxed mb-6">
+            Исходный код, история изменений, документация и возможность форкнуть скрипт.
+          </p>
+        </div>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="btn-ghost w-full flex items-center justify-center gap-2 rounded-xl border border-edge bg-surface font-semibold py-3 text-xs text-cream hover:border-cream/50">
+          <i data-lucide="external-link" class="w-4 h-4 text-cream"></i> Открыть GitHub
+        </a>
+      </div>
+
+      <!-- Yandex Disk -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="grid place-items-center size-12 rounded-xl bg-[#fc3f1d]/15 text-[#fc3f1d]">
+              <i data-lucide="hard-drive" class="w-6 h-6"></i>
+            </span>
+            <span class="mono-label text-[10px] text-faint">Яндекс Диск</span>
+          </div>
+          <h3 class="font-display font-700 text-lg mb-2">Яндекс Диск</h3>
+          <p class="text-xs text-dim leading-relaxed mb-6">
+            Зеркало скрипта и архива с инструкциями на Яндекс Диске для быстрой загрузки.
+          </p>
+        </div>
+        <a href="https://disk.yandex.ru" target="_blank" rel="noopener noreferrer" class="btn-ghost w-full flex items-center justify-center gap-2 rounded-xl border border-edge bg-surface font-semibold py-3 text-xs text-cream hover:border-[#fc3f1d]/50">
+          <i data-lucide="external-link" class="w-4 h-4 text-[#fc3f1d]"></i> Яндекс Диск
+        </a>
+      </div>
+
+      <!-- Google Drive -->
+      <div class="card-hover rounded-2xl border border-edge bg-panel p-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <span class="grid place-items-center size-12 rounded-xl bg-azure/15 text-azure">
+              <i data-lucide="folder-git-2" class="w-6 h-6"></i>
+            </span>
+            <span class="mono-label text-[10px] text-faint">Google Drive</span>
+          </div>
+          <h3 class="font-display font-700 text-lg mb-2">Google Drive</h3>
+          <p class="text-xs text-dim leading-relaxed mb-6">
+            Резервное облачное хранилище со скриптом и шаблонами конфигураций.
+          </p>
+        </div>
+        <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" class="btn-ghost w-full flex items-center justify-center gap-2 rounded-xl border border-edge bg-surface font-semibold py-3 text-xs text-cream hover:border-azure/50">
+          <i data-lucide="external-link" class="w-4 h-4 text-azure"></i> Google Drive
+        </a>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ TERMINAL SIMULATION SECTION ══════════════════ -->
+<section id="section-sim" class="py-20 md:py-28 border-t border-edge bg-surface/50 scroll-mt-20">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8">
+      <div>
+        <div class="mono-label text-gold mb-2">05 — Симуляция исполнения</div>
+        <h2 class="font-display font-800 text-3xl sm:text-4xl tracking-tight">
+          Интерактивный <span class="stroke-text">терминал</span>
+        </h2>
+        <p class="text-dim text-sm mt-2">
+          Наблюдайте пошаговый процесс работы: GET-запрос, парсинг CSRF, создание лотов и паузы.
+        </p>
+      </div>
+
+      <button id="btn-replay-sim" class="btn-ghost self-start sm:self-auto flex items-center gap-2 rounded-xl border border-edge bg-panel px-5 py-2.5 font-mono text-xs font-semibold text-cream">
+        <i data-lucide="rotate-ccw" class="w-4 h-4 text-gold"></i> Перезапустить симуляцию
+      </button>
+    </div>
+
+    <!-- Terminal Window -->
+    <div id="sim-window" class="rounded-2xl border border-edge-lit bg-[#080a10] shadow-2xl overflow-hidden">
+      
+      <!-- Terminal header -->
+      <div class="flex items-center justify-between px-4 sm:px-6 h-11 border-b border-edge bg-panel/90">
+        <div class="flex items-center gap-2">
+          <span class="size-3 rounded-full bg-[#ff5f56]"></span>
+          <span class="size-3 rounded-full bg-[#ffbd2e]"></span>
+          <span class="size-3 rounded-full bg-[#27c93f]"></span>
+          <span class="ml-2 font-mono text-xs text-dim">terminal ~ python funpay_lots.py</span>
+        </div>
+        <div id="sim-status-indicator" class="flex items-center gap-2 font-mono text-xs text-mint">
+          <span class="size-2 rounded-full bg-mint dot-live"></span>
+          <span>выполняется</span>
+        </div>
+      </div>
+
+      <!-- Terminal output body -->
+      <div id="terminal-body" class="sim-scroll code-text px-5 sm:px-7 py-6 h-[400px] overflow-y-auto space-y-1 text-xs sm:text-sm font-mono">
+        <!-- Lines injected via JS -->
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ DETAILED REAL-WORLD RISKS SECTION ══════════════════ -->
+<section id="section-risks" class="py-20 md:py-28 border-t border-edge scroll-mt-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="max-w-3xl mb-12">
+      <div class="mono-label text-rose mb-2 flex items-center gap-2">
+        <i data-lucide="shield-alert" class="w-4 h-4"></i> 06 — Анализ рисков и безопасность
+      </div>
+      <h2 class="font-display font-800 text-3xl sm:text-4xl lg:text-5xl tracking-tight">
+        Реальные риски автоматизации <span class="text-rose">FunPay</span>
+      </h2>
+      <p class="text-dim text-sm sm:text-base mt-3 leading-relaxed">
+        Подробный технический разбор механизмов антифрода площадки, вероятных последствий нарушений правил и правил безопасной работы.
+      </p>
+    </div>
+
+    <!-- 6 Detailed Risk Blocks -->
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      
+      <!-- Risk 1 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="activity" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">Поведенческий антифрод & WAF</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          FunPay отслеживает частоту запросов к эндпоинту <code class="text-rose font-mono text-xs">/lots/offerSave</code>. Пачка из 50 POST-запросов за 2 секунды мгновенно триггерит rate limit (HTTP 429 / 403) и помечает сессию флагом подозрительной активности. Именно поэтому обязательны паузы <code class="text-gold font-mono text-xs">random.uniform(3.5, 7.5)</code>.
+        </p>
+      </div>
+
+      <!-- Risk 2 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="network" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">IP-репутация & Cloudflare</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          Запуск скрипта с серверных IP (Hetzner, OVH, DigitalOcean, AWS) часто упирается в Cloudflare Turnstile капчу. Рекомендуется запускать скрипт исключительно со своего домашнего российского IP или через качественные приватные мобильные/резидентские SOCKS5-прокси.
+        </p>
+      </div>
+
+      <!-- Risk 3 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">Риск овербукинга & споров</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          Если выставить 20 одинаковых лотов, а покупатель решит выкупить сразу 10 штук — вы обязаны предоставить 10 уникальных товаров. При невозможности выдачи покупатели откроют арбитраж, что приведёт к заморозке баланса до 48 часов и ручной проверке модерацией.
+        </p>
+      </div>
+
+      <!-- Risk 4 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="file-warning" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">Правила о мультилистинге</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          Пункт правил 3.1 FunPay запрещает засорение таблицы предложений дубликатами. Модераторы имеют право удалить дублирующиеся лоты без предупреждения или применить теневой бан (shadowban) для поднятия ваших лотов в выдаче.
+        </p>
+      </div>
+
+      <!-- Risk 5 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="key" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">Безопасность golden_key</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          Токен <code class="text-gold font-mono text-xs">golden_key</code> даёт абсолютный доступ к аккаунту без ввода пароля и 2FA. Никогда не сохраняйте его в публичных репозиториях GitHub, не передавайте третьим лицам и обновляйте куки при подозрениях на компрометацию.
+        </p>
+      </div>
+
+      <!-- Risk 6 -->
+      <div class="rounded-2xl border border-rose/30 bg-panel/70 p-6 sm:p-7 relative overflow-hidden">
+        <div class="danger-stripes h-1.5 absolute top-0 inset-x-0"></div>
+        <div class="flex items-center gap-3 mb-4 mt-2">
+          <span class="grid place-items-center size-10 rounded-xl bg-rose/15 text-rose font-bold">
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+          </span>
+          <h3 class="font-display font-700 text-base">Чек-лист безопасности</h3>
+        </div>
+        <p class="text-xs sm:text-sm text-dim leading-relaxed">
+          1. Всегда делайте тестовый прогон на 2–3 лотах перед основным.<br>
+          2. Не создавайте более 15–20 лотов за один сеанс.<br>
+          3. Не уменьшайте антифрод-паузы ниже 3.5 секунд.<br>
+          4. Проверяйте актуальность <code class="text-cream font-mono text-xs">category_url</code>.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ FAQ SECTION ══════════════════ -->
+<section id="section-faq" class="py-20 md:py-28 border-t border-edge bg-surface/40 scroll-mt-20">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <div class="text-center mb-14">
+      <div class="mono-label text-gold mb-2">07 — Ответы на частые вопросы</div>
+      <h2 class="font-display font-800 text-3xl sm:text-4xl tracking-tight">
+        Вопросы и <span class="stroke-text">решения проблем</span>
+      </h2>
+    </div>
+
+    <div class="space-y-4">
+      
+      <details class="group rounded-2xl border border-edge bg-panel p-5 transition-colors open:border-gold/40">
+        <summary class="flex items-center justify-between cursor-pointer font-display font-700 text-base text-cream group-hover:text-gold transition-colors">
+          <span>Где взять golden_key и PHPSESSID в браузере?</span>
+          <span class="transition-transform group-open:rotate-180 text-gold ml-4"><i data-lucide="chevron-down" class="w-5 h-5"></i></span>
+        </summary>
+        <div class="mt-4 text-sm text-dim leading-relaxed border-t border-edge pt-4 space-y-2">
+          <p>1. Откройте сайт <strong class="text-cream">funpay.com</strong> и авторизуйтесь в своём аккаунте.</p>
+          <p>2. Нажмите <kbd class="px-1.5 py-0.5 rounded bg-surface border border-edge text-gold font-mono text-xs">F12</kbd> (Инструменты разработчика).</p>
+          <p>3. Перейдите во вкладку <strong class="text-cream">Application</strong> (Приложение) → слева раскройте раздел <strong class="text-cream">Cookies</strong> → выберите <code class="text-cream font-mono">https://funpay.com</code>.</p>
+          <p>4. Найдите строки с именами <code class="text-gold font-mono">golden_key</code> и <code class="text-gold font-mono">PHPSESSID</code>, дважды кликните по значению и скопируйте их в скрипт.</p>
+        </div>
+      </details>
+
+      <details class="group rounded-2xl border border-edge bg-panel p-5 transition-colors open:border-gold/40">
+        <summary class="flex items-center justify-between cursor-pointer font-display font-700 text-base text-cream group-hover:text-gold transition-colors">
+          <span>Что делать, если возникает ошибка «форма лота не найдена»?</span>
+          <span class="transition-transform group-open:rotate-180 text-gold ml-4"><i data-lucide="chevron-down" class="w-5 h-5"></i></span>
+        </summary>
+        <div class="mt-4 text-sm text-dim leading-relaxed border-t border-edge pt-4 space-y-2">
+          <p>Это означает, что на странице категории отсутствует HTML-форма добавления предложения. Причины:</p>
+          <p>• Устарели куки <code class="text-gold font-mono text-xs">golden_key</code> или <code class="text-gold font-mono text-xs">PHPSESSID</code> (сессия истекла, FunPay считает вас неавторизованным гостем).</p>
+          <p>• Ваш аккаунт не имеет прав продавца в данной категории (например, требуется подтверждение по номеру телефона).</p>
+          <p>• Неверно указан <code class="text-cream font-mono text-xs">category_url</code> (должна быть страница списка лотов, где сверху есть кнопка «Добавить лот» / форма).</p>
+        </div>
+      </details>
+
+      <details class="group rounded-2xl border border-edge bg-panel p-5 transition-colors open:border-gold/40">
+        <summary class="flex items-center justify-between cursor-pointer font-display font-700 text-base text-cream group-hover:text-gold transition-colors">
+          <span>Как скрипт подтягивает специфичные поля категории (сервер, фракция, сторона)?</span>
+          <span class="transition-transform group-open:rotate-180 text-gold ml-4"><i data-lucide="chevron-down" class="w-5 h-5"></i></span>
+        </summary>
+        <div class="mt-4 text-sm text-dim leading-relaxed border-t border-edge pt-4">
+          <p>Функция <code class="text-azure font-mono text-xs">fetch_form_data()</code> автоматически считывает абсолютно все существующие теги <code class="text-cream font-mono text-xs">&lt;input&gt;</code>, <code class="text-cream font-mono text-xs">&lt;select&gt;</code> и <code class="text-cream font-mono text-xs">&lt;textarea&gt;</code> внутри формы лота категории со значениями по умолчанию. Затем <code class="text-azure font-mono text-xs">build_payload()</code> объединяет их с вашими названием, описанием и текущей ценой шага.</p>
+        </div>
+      </details>
+
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════ FOOTER ══════════════════ -->
+<footer class="border-t border-edge bg-surface py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-8">
+    <div class="flex items-center gap-3">
+      <span class="grid place-items-center size-9 rounded-lg bg-gold text-ink font-black shadow-lg shadow-gold/20">
+        <i data-lucide="hammer" class="w-4.5 h-4.5"></i>
+      </span>
+      <div class="flex flex-col">
+        <span class="font-display font-800 text-sm leading-none">LOT<span class="text-gold">·</span>FORGE</span>
+        <span class="mono-label text-[9px] text-faint mt-1">open-source инструмент · v2.4</span>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mono-label text-[11px] text-faint">
+      <a href="#hero" class="hover:text-gold transition-colors">Вверх</a>
+      <a href="#section-pipeline" class="hover:text-gold transition-colors">Конвейер</a>
+      <a href="#section-configurator" class="hover:text-gold transition-colors">Конфигуратор</a>
+      <a href="#section-code" class="hover:text-gold transition-colors">Код</a>
+      <a href="#section-risks" class="hover:text-gold transition-colors">Безопасность</a>
+    </div>
+
+    <div class="flex flex-col items-center md:items-end gap-1.5">
+      <p class="font-mono text-xs text-dim flex items-center gap-1.5">
+        <i data-lucide="user-round" class="w-3.5 h-3.5 text-gold"></i>
+        владелец <span class="text-gold font-bold">saveeeeeek</span>
+      </p>
+      <p class="font-mono text-xs text-faint flex items-center gap-1.5">
+        © <span id="footer-year">2025</span> · куется на <span class="text-mint font-semibold">Python</span> и <i data-lucide="coffee" class="w-3.5 h-3.5 text-gold"></i> <span class="text-cream font-semibold">кофе</span>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════ APPLICATION JAVASCRIPT ══════════════════ -->
+<script>
+/* ==========================================================================
+   APP STATE & DYNAMIC CODE GENERATOR
+   ========================================================================== */
+
+const state = {
+  minPrice: 60,
+  maxPrice: 70,
+  priceStep: 1,
+  maxLots: 0,
+  goldenKey: 'ВСТАВЬ_GOLDEN_KEY',
+  phpsessid: 'ВСТАВЬ_PHPSESSID',
+  csrfToken: '',
+  categoryUrl: 'https://funpay.com/lots/123/',
+  nodeId: '',
+  lotTitle: 'Личный аккаунт / Быстрая выдача',
+  lotDesc: 'Моментальная доставка 24/7.\n\n• Полный доступ со сменой всех данных (почта, пароль).\n• Гарантия безопасности и замена в случае проблем.\n• Оплата: любая карта, СБП, криптовалюта.\n\nПеред покупкой пишите в чат — уточню наличие.',
+  amount: '9999',
+  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  proxy: '',
+  pauseMin: '3.5',
+  pauseMax: '7.5',
+  retries: '2',
+  dumpFields: true,
+  activeLot: true,
+  autoTranslate: true,
+  translator: 'auto',
+  langFrom: 'ru',
+  langTo: 'en',
+  extraFields: [
+    { name: 'fields[type]', value: '' }
+  ],
+  categories: []
+};
+
+/** Экранирование текста для вставки в тройные кавычки Python */
+function pyTriple(text) {
+  return String(text == null ? '' : text)
+    .replace(/\\/g, '\\\\')
+    .replace(/"""/g, '\\"\\"\\"')
+    .replace(/\$\{/g, '${');
+}
+
+/** Экранирование для обычной Python-строки в кавычках */
+function pyStr(text) {
+  return String(text == null ? '' : text)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, ' ');
+}
+
+/**
+ * Calculates current price array based on min, max, step, maxLots
+ */
+function getCalculatedPrices() {
+  const min = Math.max(1, parseInt(state.minPrice) || 1);
+  const max = Math.max(min, parseInt(state.maxPrice) || min);
+  const step = Math.max(1, parseInt(state.priceStep) || 1);
+  const limit = Math.max(0, parseInt(state.maxLots) || 0);
+
+  const prices = [];
+  for (let p = min; p <= max; p += step) {
+    prices.push(p);
+    if (limit > 0 && prices.length >= limit) break;
+  }
+  return prices;
+}
+
+/**
+ * Generates valid executable Python source string
+ */
+function generatePythonSource() {
+  const prices = getCalculatedPrices();
+
+  // Доп. поля категории -> словарь Python
+  const rows = (state.extraFields || []).filter(f => f.name && f.name.trim());
+  const extraFieldsPy = rows.length
+    ? rows.map(f => `    "${pyStr(f.name)}": "${pyStr(f.value)}",`).join('\n')
+    : '    # "fields[type]": "1",      # пример: тип/подписка\n' +
+      '    # "server_id": "42",        # пример: сервер\n' +
+      '    # "fields[side]": "3",      # пример: сторона';
+
+  return `# -*- coding: utf-8 -*-
+"""
+=================================================================
+  FUNPAY LOT FORGE v3.0 - массовое создание лотов
+  Python 3 / requests / beautifulsoup4
+=================================================================
+  pip install requests beautifulsoup4
+  python funpay_lots.py
+
+  ЧТО ИСПРАВЛЕНО В ЭТОЙ ВЕРСИИ:
+    * Ошибка 428 Precondition Required. csrf-token читается из
+      <body data-app-data='...'>, дублируется в заголовке
+      x-csrf-token и автоматически обновляется с повтором POST.
+    * fetch_form_data() работает И с csrf_token в форме, И без него:
+      4 стратегии поиска + ручное значение из Config.csrf_token.
+    * При ЛЮБОМ статусе != 200 печатается тело ответа сервера.
+    * Многострочные описания через тройные кавычки.
+    * Автоперевод RU -> EN (Google Translate / Yandex Translate).
+    * Доп. поля категории (тип подписки, сервер, сторона) в EXTRA_FIELDS.
+    * Просмотр категорий: python funpay_lots.py --categories
+
+  Текущий прогон: ${state.minPrice} -> ${state.maxPrice} руб., шаг ${state.priceStep} руб., лотов: ${prices.length}
+"""
+
+import html as html_lib
+import json
+import random
+import re
+import sys
+import time
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Tuple
+
+try:
+    import requests
+    from bs4 import BeautifulSoup
+except ImportError:
+    sys.exit("[-] Установите зависимости: pip install requests beautifulsoup4")
+
+
+# ============== ТЕКСТЫ ЛОТА (многострочные, любые кавычки) ==============
+
+LOT_TITLE = """${pyTriple(state.lotTitle)}"""
+
+LOT_DESCRIPTION = """${pyTriple(state.lotDesc)}"""
+
+PAYMENT_MESSAGE = """"""  # сообщение покупателю после оплаты
+
+
+# ====== ДОП. ПОЛЯ КАТЕГОРИИ (тип подписки, срок, сервер, сторона) ======
+# Точные имена и допустимые значения печатает сам скрипт,
+# если Config.dump_fields = True (смотрите блок "Поля формы категории").
+EXTRA_FIELDS: Dict[str, str] = {
+${extraFieldsPy}
+}
+
+
+# ======================== КОНФИГУРАЦИЯ ========================
+
+@dataclass
+class Config:
+    """Все входные параметры скрипта."""
+
+    # -- Авторизация (DevTools -> Application -> Cookies) --
+    golden_key: str = "${pyStr(state.goldenKey)}"
+    phpsessid: str = "${pyStr(state.phpsessid)}"
+    user_agent: str = (
+        "${pyStr(state.userAgent)}"
+    )
+
+    # -- CSRF: пусто = автопарсинг (input -> data-app-data -> meta -> regex) --
+    csrf_token: str = "${pyStr(state.csrfToken)}"
+
+    # -- Категория --
+    category_url: str = "${pyStr(state.categoryUrl)}"
+    node_id: str = "${pyStr(state.nodeId)}"   # пусто = взять из формы/URL
+
+    # -- Контент лота --
+    lot_title: str = LOT_TITLE.strip()
+    lot_description: str = LOT_DESCRIPTION.strip()
+    payment_msg: str = PAYMENT_MESSAGE.strip()
+
+    # -- Диапазон цен и шаг --
+    min_price: int = ${parseInt(state.minPrice) || 60}
+    max_price: int = ${parseInt(state.maxPrice) || 70}
+    price_step: int = ${parseInt(state.priceStep) || 1}
+    max_lots: int = ${parseInt(state.maxLots) || 0}  # 0 = все в диапазоне
+
+    # -- Автоперевод описания на английский --
+    auto_translate: bool = ${state.autoTranslate ? 'True' : 'False'}
+    translator: str = "${pyStr(state.translator)}"   # auto | google | yandex
+    lang_from: str = "${pyStr(state.langFrom)}"
+    lang_to: str = "${pyStr(state.langTo)}"
+
+    # -- Технические параметры --
+    amount: str = "${pyStr(state.amount)}"
+    active: bool = ${state.activeLot ? 'True' : 'False'}
+    dump_fields: bool = ${state.dumpFields ? 'True' : 'False'}
+    pause_min: float = ${parseFloat(state.pauseMin) || 3.5}
+    pause_max: float = ${parseFloat(state.pauseMax) || 7.5}
+    retries: int = ${parseInt(state.retries) || 0}
+    timeout: int = 20
+    proxy: str = "${pyStr(state.proxy)}"
+
+    BASE_URL: str = "https://funpay.com"
+    FALLBACK_SAVE_URL: str = "https://funpay.com/lots/offerSave"
+
+
+# ================== 1. ИНИЦИАЛИЗАЦИЯ СЕССИИ ==================
+
+def init_session(cfg: Config) -> requests.Session:
+    """
+    Сессия с куки авторизации и полным набором браузерных заголовков,
+    чтобы запрос был неотличим от обычного пользовательского.
+    """
+    session = requests.Session()
+    session.cookies.update({
+        "golden_key": cfg.golden_key,
+        "PHPSESSID": cfg.phpsessid,
+    })
+    session.headers.update({
+        "User-Agent": cfg.user_agent,
+        "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Connection": "keep-alive",
+        "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Upgrade-Insecure-Requests": "1",
+        "Origin": cfg.BASE_URL,
+        "Referer": cfg.category_url,
+    })
+    if cfg.proxy:
+        session.proxies.update({"http": cfg.proxy, "https": cfg.proxy})
+        print(f"[*] Прокси активен: {cfg.proxy}")
+    return session
+
+
+# ============== 2. ПОИСК CSRF-ТОКЕНА (4 СТРАТЕГИИ) ==============
+
+def extract_csrf(soup: BeautifulSoup, raw_html: str, cfg: Config) -> str:
+    """
+    Ищет csrf-token последовательно:
+      1) ручное значение из Config.csrf_token
+      2) <input name="csrf_token" value="...">
+      3) <body data-app-data='{"csrf-token": "..."}'>  <- основной путь FunPay
+      4) <meta name="csrf-token" content="...">
+      5) regex по сырому HTML (на случай инлайн-JS)
+    """
+    if cfg.csrf_token.strip():
+        print("[*] Использую csrf_token из Config (ручной режим).")
+        return cfg.csrf_token.strip()
+
+    tag = soup.find("input", {"name": "csrf_token"})
+    if tag and tag.get("value"):
+        return tag["value"]
+
+    body = soup.find("body")
+    if body and body.get("data-app-data"):
+        try:
+            app_data = json.loads(html_lib.unescape(body["data-app-data"]))
+            token = app_data.get("csrf-token") or app_data.get("csrfToken")
+            if token:
+                return str(token)
+        except (ValueError, TypeError):
+            pass
+
+    meta = soup.find("meta", attrs={"name": re.compile("csrf", re.I)})
+    if meta and meta.get("content"):
+        return meta["content"]
+
+    match = re.search(r'csrf[-_]token[^A-Za-z0-9]{1,8}([A-Za-z0-9_\\-]{16,})', raw_html, re.I)
+    if match:
+        return match.group(1)
+
+    return ""
+
+
+def extract_node_id(soup: BeautifulSoup, cfg: Config) -> str:
+    """node_id: ручной -> скрытый input -> число из URL категории."""
+    if cfg.node_id.strip():
+        return cfg.node_id.strip()
+
+    tag = soup.find("input", {"name": "node_id"})
+    if tag and tag.get("value"):
+        return str(tag["value"])
+
+    match = re.search(r"/lots/(\\d+)/", cfg.category_url)
+    return match.group(1) if match else ""
+
+
+def dump_form_fields(form) -> None:
+    """Печатает все поля категории и варианты select -> для EXTRA_FIELDS."""
+    print("[*] ----- Поля формы категории -----")
+    for element in form.find_all(["input", "textarea", "select"]):
+        name = element.get("name")
+        if not name:
+            continue
+        if element.name == "select":
+            opts = [
+                f"{opt.get('value', '')}={opt.get_text(strip=True)}"
+                for opt in element.find_all("option")
+            ]
+            print(f"    [select]   {name}: " + " | ".join(opts[:14]))
+        else:
+            el_type = (element.get("type") or "text").lower()
+            value = str(element.get("value") or "")[:40]
+            print(f"    [{el_type}] {name} = {value}")
+    print("[*] ----- Нужные пары скопируйте в EXTRA_FIELDS -----")
+
+
+# ============== 3. ПАРСИНГ ФОРМЫ ЛОТА И ЭНДПОИНТА ==============
+
+def fetch_form_data(session: requests.Session, cfg: Config) -> Tuple[str, Dict[str, str]]:
+    """
+    GET страницы категории обычным «браузерным» запросом.
+    Возвращает (save_url, fields). Работает даже если HTML-формы нет:
+    тогда csrf_token берётся из data-app-data, а node_id — из URL.
+    """
+    print(f"[*] GET {cfg.category_url}")
+    try:
+        response = session.get(
+            cfg.category_url,
+            headers={
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                          "image/avif,image/webp,*/*;q=0.8",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+            },
+            timeout=cfg.timeout,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(f"страница категории недоступна: {exc}") from exc
+
+    raw_html = response.text
+    soup = BeautifulSoup(raw_html, "html.parser")
+
+    if "/login" in response.url or soup.find("form", action=re.compile("login")):
+        print("[!] Сессия выглядит НЕавторизованной — обновите golden_key и PHPSESSID.")
+
+    form = (
+        soup.find("form", action=lambda a: a and "offerSave" in a)
+        or soup.find("form", class_=lambda c: c and "form-offer-editor" in c)
+        or soup.find("form", class_=lambda c: c and "form-setting" in c)
+    )
+
+    fields: Dict[str, str] = {}
+    if form is not None:
+        for element in form.find_all(["input", "textarea", "select"]):
+            name = element.get("name")
+            if not name:
+                continue
+            el_type = (element.get("type") or "").lower()
+            if el_type in ("submit", "button", "file"):
+                continue
+            if el_type in ("checkbox", "radio") and not element.has_attr("checked"):
+                continue
+            if element.name == "select":
+                option = element.find("option", selected=True) or element.find("option")
+                fields[name] = option.get("value", "") if option else ""
+            else:
+                fields[name] = element.get("value", element.text or "")
+
+        if cfg.dump_fields:
+            dump_form_fields(form)
+
+        save_url = form.get("action") or cfg.FALLBACK_SAVE_URL
+    else:
+        print("[!] HTML-форма лота не найдена (её часто дорисовывает JS).")
+        print("[*] Продолжаю: csrf_token + node_id берутся со страницы / из Config.")
+        save_url = cfg.FALLBACK_SAVE_URL
+
+    csrf = extract_csrf(soup, raw_html, cfg)
+    if csrf:
+        fields["csrf_token"] = csrf
+        print(f"[+] CSRF Token: {csrf[:14]}...")
+    else:
+        print("[!] csrf_token не найден автоматически!")
+        print("    Вставьте его вручную в Config.csrf_token, иначе будет 428.")
+
+    node_id = extract_node_id(soup, cfg)
+    if node_id:
+        fields["node_id"] = node_id
+    print(f"[+] Node ID:    {fields.get('node_id') or 'не определён'}")
+
+    if save_url.startswith("/"):
+        save_url = cfg.BASE_URL + save_url
+    print(f"[+] Endpoint:   {save_url}")
+    return save_url, fields
+
+
+def refresh_csrf(session: requests.Session, cfg: Config) -> str:
+    """Перезапрашивает страницу и достаёт свежий csrf-token (лечение 428)."""
+    try:
+        response = session.get(cfg.category_url, timeout=cfg.timeout)
+        soup = BeautifulSoup(response.text, "html.parser")
+        fresh = extract_csrf(soup, response.text, Config(csrf_token=""))
+        if fresh:
+            print(f"[+] Новый csrf_token: {fresh[:14]}...")
+        return fresh
+    except requests.RequestException as exc:
+        print(f"[-] Не удалось обновить csrf_token: {exc}")
+        return ""
+
+
+# ============== 4. СПИСОК КАТЕГОРИЙ (--categories) ==============
+
+def list_categories(session: requests.Session, cfg: Config) -> None:
+    """Печатает подкатегории игры со ссылками и node_id."""
+    print(f"[*] Сканирую категории: {cfg.category_url}")
+    try:
+        response = session.get(cfg.category_url, timeout=cfg.timeout)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        sys.exit(f"[-] Ошибка загрузки: {exc}")
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    seen = set()
+    print("-" * 60)
+    for link in soup.find_all("a", href=True):
+        match = re.search(r"/(lots|chips)/(\\d+)/", link["href"])
+        if not match:
+            continue
+        node = match.group(2)
+        title = link.get_text(strip=True)
+        if not title or node in seen:
+            continue
+        seen.add(node)
+        print(f"  node_id={node:<8} {title[:52]}")
+    print("-" * 60)
+    print(f"[*] Найдено категорий: {len(seen)}")
+    print("[*] Подставьте нужный node_id в Config.node_id и category_url.")
+
+
+# ==================== 5. АВТОПЕРЕВОД ТЕКСТА ====================
+
+_TRANSLATION_CACHE: Dict[str, str] = {}
+
+
+def translate_text(text: str, cfg: Config) -> str:
+    """
+    Перевод через Google Translate (gtx) с фолбэком на Yandex Translate.
+    Ошибки перевода не ломают прогон — возвращается исходный текст.
+    """
+    if not cfg.auto_translate or not text.strip():
+        return text
+
+    cache_key = f"{cfg.lang_from}:{cfg.lang_to}:{text}"
+    if cache_key in _TRANSLATION_CACHE:
+        return _TRANSLATION_CACHE[cache_key]
+
+    providers = ["google", "yandex"] if cfg.translator == "auto" else [cfg.translator]
+    headers = {"User-Agent": cfg.user_agent}
+    proxies = {"http": cfg.proxy, "https": cfg.proxy} if cfg.proxy else None
+
+    for provider in providers:
+        try:
+            if provider == "google":
+                resp = requests.get(
+                    "https://translate.googleapis.com/translate_a/single",
+                    params={
+                        "client": "gtx",
+                        "sl": cfg.lang_from,
+                        "tl": cfg.lang_to,
+                        "dt": "t",
+                        "q": text,
+                    },
+                    headers=headers, proxies=proxies, timeout=cfg.timeout,
+                )
+                if resp.status_code == 200:
+                    chunks = resp.json()[0] or []
+                    result = "".join(part[0] for part in chunks if part and part[0])
+                    if result.strip():
+                        _TRANSLATION_CACHE[cache_key] = result
+                        print(f"[+] Перевод (Google): {result[:44]}...")
+                        return result
+                print(f"[-] Google Translate вернул {resp.status_code}")
+
+            elif provider == "yandex":
+                resp = requests.post(
+                    "https://translate.yandex.net/api/v1/tr.json/translate",
+                    params={"srv": "tr-text", "id": "0", "lang": f"{cfg.lang_from}-{cfg.lang_to}"},
+                    data={"text": text, "options": "4"},
+                    headers=headers, proxies=proxies, timeout=cfg.timeout,
+                )
+                if resp.status_code == 200:
+                    result = " ".join(resp.json().get("text", []))
+                    if result.strip():
+                        _TRANSLATION_CACHE[cache_key] = result
+                        print(f"[+] Перевод (Yandex): {result[:44]}...")
+                        return result
+                print(f"[-] Yandex Translate вернул {resp.status_code}")
+
+        except (requests.RequestException, ValueError, KeyError, IndexError) as exc:
+            print(f"[-] {provider}: перевод не удался ({exc})")
+
+    print("[*] Перевод пропущен — использую исходный текст.")
+    return text
+
+
+# =================== 6. ФОРМИРОВАНИЕ PAYLOAD ===================
+
+def build_payload(base_fields: Dict[str, str], cfg: Config, price: int,
+                  texts: Dict[str, str]) -> Dict[str, str]:
+    """FormData лота: поля формы + категорийные EXTRA_FIELDS + цена."""
+    payload = dict(base_fields)
+    payload.update({
+        "csrf_token": base_fields.get("csrf_token", cfg.csrf_token),
+        "node_id": base_fields.get("node_id", cfg.node_id),
+        "offer_id": "0",              # 0 = создать новый лот
+        "price": str(price),
+        "amount": str(cfg.amount),
+        "active": "on" if cfg.active else "",
+        "fields[summary][ru]": texts["title_ru"],
+        "fields[summary][en]": texts["title_en"],
+        "fields[desc][ru]": texts["desc_ru"],
+        "fields[desc][en]": texts["desc_en"],
+        "fields[payment_msg][ru]": texts["pay_ru"],
+        "fields[payment_msg][en]": texts["pay_en"],
+    })
+    # Поля конкретной категории (тип подписки, срок, сервер, сторона...)
+    payload.update({k: v for k, v in EXTRA_FIELDS.items() if v != ""})
+    return {k: ("" if v is None else v) for k, v in payload.items()}
+
+
+# ============ 7. ОТПРАВКА ФОРМЫ (+ЛЕЧЕНИЕ 428/429/403) ============
+
+def create_lot(session: requests.Session, save_url: str, payload: Dict[str, str],
+               price: int, cfg: Config) -> bool:
+    """
+    POST на эндпоинт сохранения лота.
+    csrf_token уходит и в теле формы, и в заголовке x-csrf-token —
+    именно отсутствие второго даёт 428 Precondition Required.
+    При любом статусе != 200 печатается тело ответа сервера.
+    """
+    attempt = 0
+    while attempt <= cfg.retries:
+        attempt += 1
+        headers = {
+            "Accept": "*/*",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-CSRF-Token": payload.get("csrf_token", ""),
+            "Origin": cfg.BASE_URL,
+            "Referer": cfg.category_url,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+        }
+        try:
+            response = session.post(save_url, data=payload, headers=headers,
+                                    timeout=cfg.timeout)
+        except requests.RequestException as exc:
+            print(f"[-] Сетевая ошибка при создании лота за {price} руб.: {exc}")
+            time.sleep(3)
+            continue
+
+        body = (response.text or "").strip()
+
+        if response.status_code == 200:
+            try:
+                data = response.json()
+            except ValueError:
+                data = {}
+            error = None
+            if isinstance(data, dict):
+                error = data.get("error") or data.get("msg") or data.get("errors")
+            if error:
+                print(f"[-] Отказ сервера для лота за {price} руб.: {error}")
+                print(f"    Тело ответа: {body[:400]}")
+                return False
+            print(f"[+] Успешно создан лот за {price} руб.")
+            return True
+
+        # ---- ЛЮБОЙ не-200: показываем что именно ответил FunPay ----
+        print(f"[-] Ошибка при создании лота за {price} руб. Статус: {response.status_code}")
+        print(f"    Тело ответа: {body[:400] if body else '<пустое тело>'}")
+
+        if response.status_code in (428, 419, 403) and attempt <= cfg.retries:
+            print("[*] 428/419/403 -> обновляю csrf_token и повторяю запрос...")
+            fresh = refresh_csrf(session, cfg)
+            if fresh:
+                payload["csrf_token"] = fresh
+            else:
+                print("[!] Свежий токен не получен. Впишите csrf_token в Config вручную.")
+            time.sleep(random.uniform(cfg.pause_min, cfg.pause_max))
+            continue
+
+        if response.status_code == 429 and attempt <= cfg.retries:
+            wait = 20 * attempt
+            print(f"[*] 429 Too Many Requests -> жду {wait} сек...")
+            time.sleep(wait)
+            continue
+
+        return False
+
+    return False
+
+
+# ================ 8. ЦИКЛ СОЗДАНИЯ + АНТИФРОД ================
+
+def prepare_texts(cfg: Config) -> Dict[str, str]:
+    """Готовит RU/EN версии текстов (перевод выполняется один раз)."""
+    return {
+        "title_ru": cfg.lot_title,
+        "title_en": translate_text(cfg.lot_title, cfg),
+        "desc_ru": cfg.lot_description,
+        "desc_en": translate_text(cfg.lot_description, cfg),
+        "pay_ru": cfg.payment_msg,
+        "pay_en": translate_text(cfg.payment_msg, cfg) if cfg.payment_msg else "",
+    }
+
+
+def run(cfg: Config) -> None:
+    session = init_session(cfg)
+    save_url, base_fields = fetch_form_data(session, cfg)
+    texts = prepare_texts(cfg)
+
+    prices = list(range(cfg.min_price, cfg.max_price + 1, cfg.price_step))
+    if cfg.max_lots > 0:
+        prices = prices[:cfg.max_lots]
+
+    total = len(prices)
+    print("-" * 60)
+    print(f"[*] Диапазон: {cfg.min_price}..{cfg.max_price} руб. | "
+          f"Шаг: {cfg.price_step} руб. | Лотов: {total}")
+    print(f"[*] Категория node_id={base_fields.get('node_id') or '?'} | "
+          f"Доп. полей: {len([v for v in EXTRA_FIELDS.values() if v])}")
+    print("-" * 60)
+
+    created, failed = 0, 0
+    for idx, price in enumerate(prices, start=1):
+        payload = build_payload(base_fields, cfg, price, texts)
+        if create_lot(session, save_url, payload, price, cfg):
+            created += 1
+        else:
+            failed += 1
+
+        if idx < total:
+            pause = random.uniform(cfg.pause_min, cfg.pause_max)
+            print(f"[*] Антифрод-пауза: {pause:.1f} сек...")
+            time.sleep(pause)
+
+    print("=" * 60)
+    print(f"[*] Итог прогона: успешно {created} из {total} (ошибок: {failed})")
+    print("=" * 60)
+    if failed > 0:
+        sys.exit(1)
+
+
+def main() -> None:
+    print("=" * 60)
+    print("  FUNPAY LOT FORGE v3.0 - массовое создание лотов")
+    print("=" * 60)
+
+    cfg = Config()
+
+    if "ВСТАВЬ" in cfg.golden_key or "ВСТАВЬ" in cfg.phpsessid:
+        sys.exit("[-] Укажите актуальные golden_key и PHPSESSID в классе Config!")
+
+    # Режим просмотра категорий: python funpay_lots.py --categories
+    if "--categories" in sys.argv:
+        list_categories(init_session(cfg), cfg)
+        return
+
+    if cfg.min_price > cfg.max_price:
+        sys.exit("[-] min_price не может быть больше max_price!")
+    if cfg.price_step < 1:
+        sys.exit("[-] price_step должен быть >= 1!")
+
+    try:
+        run(cfg)
+    except KeyboardInterrupt:
+        sys.exit("\\n[*] Выполнение остановлено пользователем.")
+    except RuntimeError as exc:
+        sys.exit(f"[-] Критическая ошибка: {exc}")
+
+
+if __name__ == "__main__":
+    main()
+`;
+}
+
+/**
+ * Updates UI, Code Highlighting, and Stats across the page
+ */
+function updateApp() {
+  const prices = getCalculatedPrices();
+  const total = prices.length;
+  const min = parseInt(state.minPrice) || 60;
+  const max = parseInt(state.maxPrice) || 70;
+  const step = parseInt(state.priceStep) || 1;
+  const avgTimeSec = total > 1 ? Math.round((total - 1) * 5.5) : 1;
+
+  // 1. Update Hero stats
+  document.getElementById('stat-range-text').textContent = `${min} → ${max} ₽`;
+  document.getElementById('stat-step-text').textContent = `${step} ₽`;
+  document.getElementById('stat-total-text').textContent = `${total} ${getPlural(total, ['лот', 'лота', 'лотов'])}`;
+  document.getElementById('stat-time-text').textContent = `~${avgTimeSec} сек`;
+  document.getElementById('hero-step-stat').textContent = `${step} ₽ (${total} шт.)`;
+
+  // 2. Update Configurator stats & chips
+  document.getElementById('config-calc-summary').textContent = `${total} ${getPlural(total, ['лот', 'лота', 'лотов'])}`;
+  document.getElementById('label-step-val').textContent = `${step} ₽`;
+  document.getElementById('label-max-lots-val').textContent = state.maxLots > 0 ? `Лимит ${state.maxLots} шт.` : 'Все в диапазоне';
+  document.getElementById('calc-lots-count').textContent = total;
+  document.getElementById('calc-lots-range').textContent = `от ${min} ₽ до ${max} ₽ с шагом ${step} ₽`;
+  document.getElementById('calc-array-len').textContent = `${total} элемента(ов)`;
+  document.getElementById('calc-est-time').textContent = `~${avgTimeSec} сек (~${(avgTimeSec / 60).toFixed(1)} мин)`;
+
+  // Price chips preview in calculator
+  const chipsContainer = document.getElementById('calc-price-chips');
+  chipsContainer.innerHTML = '';
+  const displayLimit = 40;
+  prices.slice(0, displayLimit).forEach(p => {
+    const span = document.createElement('span');
+    span.className = 'font-mono text-xs px-2 py-0.5 rounded bg-panel border border-edge text-cream';
+    span.textContent = `${p} ₽`;
+    chipsContainer.appendChild(span);
+  });
+  if (prices.length > displayLimit) {
+    const more = document.createElement('span');
+    more.className = 'font-mono text-xs px-2 py-0.5 rounded bg-gold/10 text-gold border border-gold/20';
+    more.textContent = `+ ещё ${prices.length - displayLimit}`;
+    chipsContainer.appendChild(more);
+  }
+
+  // 3. Render Python code in editor with syntax highlighting and line numbers
+  const pythonCode = generatePythonSource();
+  const codeEl = document.getElementById('python-code-display');
+  codeEl.textContent = pythonCode;
+  hljs.highlightElement(codeEl);
+
+  const linesCount = pythonCode.split('\n').length;
+  document.getElementById('code-gutter').textContent =
+    Array.from({ length: linesCount }, (_, i) => i + 1).join('\n');
+}
+
+function getPlural(n, forms) {
+  const abs = Math.abs(n) % 100;
+  const n1 = abs % 10;
+  if (abs > 10 && abs < 20) return forms[2];
+  if (n1 > 1 && n1 < 5) return forms[1];
+  if (n1 === 1) return forms[0];
+  return forms[2];
+}
+
+/* ==========================================================================
+   INPUT EVENT LISTENERS
+   ========================================================================== */
+
+function bindInputs() {
+  const minInput = document.getElementById('input-min-price');
+  const maxInput = document.getElementById('input-max-price');
+  const stepInput = document.getElementById('input-price-step');
+  const maxLotsInput = document.getElementById('input-max-lots');
+  const catInput = document.getElementById('input-category-url');
+  const titleInput = document.getElementById('input-lot-title');
+  const descInput = document.getElementById('input-lot-desc');
+  const amountInput = document.getElementById('input-amount');
+  const goldenInput = document.getElementById('input-golden-key');
+  const phpsessidInput = document.getElementById('input-phpsessid');
+  const uaInput = document.getElementById('input-user-agent');
+
+  minInput.addEventListener('input', e => { state.minPrice = e.target.value; updateApp(); restartSimulation(); });
+  maxInput.addEventListener('input', e => { state.maxPrice = e.target.value; updateApp(); restartSimulation(); });
+  stepInput.addEventListener('input', e => {
+    state.priceStep = e.target.value;
+    updateStepChipsActive(e.target.value);
+    updateApp();
+    restartSimulation();
+  });
+  maxLotsInput.addEventListener('input', e => { state.maxLots = e.target.value; updateApp(); restartSimulation(); });
+
+  catInput.addEventListener('input', e => { state.categoryUrl = e.target.value; updateApp(); });
+  titleInput.addEventListener('input', e => { state.lotTitle = e.target.value; updateApp(); });
+  descInput.addEventListener('input', e => { state.lotDesc = e.target.value; updateApp(); });
+  amountInput.addEventListener('input', e => { state.amount = e.target.value; updateApp(); });
+  goldenInput.addEventListener('input', e => { state.goldenKey = e.target.value; updateApp(); });
+  phpsessidInput.addEventListener('input', e => { state.phpsessid = e.target.value; updateApp(); });
+  uaInput.addEventListener('input', e => { state.userAgent = e.target.value; updateApp(); });
+
+  // Step quick buttons
+  document.querySelectorAll('.step-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const step = btn.getAttribute('data-step');
+      state.priceStep = step;
+      stepInput.value = step;
+      updateStepChipsActive(step);
+      updateApp();
+      restartSimulation();
+    });
+  });
+
+  // Presets
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.getAttribute('data-preset');
+      if (preset === 'default') {
+        state.minPrice = 60; state.maxPrice = 70; state.priceStep = 1; state.maxLots = 0;
+      } else if (preset === 'test') {
+        state.minPrice = 60; state.maxPrice = 62; state.priceStep = 1; state.maxLots = 0;
+      } else if (preset === 'step5') {
+        state.minPrice = 50; state.maxPrice = 100; state.priceStep = 5; state.maxLots = 0;
+      } else if (preset === 'step10') {
+        state.minPrice = 100; state.maxPrice = 300; state.priceStep = 10; state.maxLots = 0;
+      }
+      minInput.value = state.minPrice;
+      maxInput.value = state.maxPrice;
+      stepInput.value = state.priceStep;
+      maxLotsInput.value = state.maxLots;
+      updateStepChipsActive(state.priceStep);
+      updateApp();
+      restartSimulation();
+    });
+  });
+}
+
+function updateStepChipsActive(val) {
+  document.querySelectorAll('.step-chip').forEach(btn => {
+    if (btn.getAttribute('data-step') === String(val)) {
+      btn.className = 'step-chip px-2 py-1.5 rounded-lg border border-gold bg-gold/15 font-mono text-xs font-bold text-gold text-center';
+    } else {
+      btn.className = 'step-chip px-2 py-1.5 rounded-lg border border-edge bg-surface font-mono text-xs text-dim text-center hover:border-gold/40';
+    }
+  });
+}
+
+/* ==========================================================================
+   DOWNLOAD & CLIPBOARD UTILITIES
+   ========================================================================== */
+
+function downloadPythonScript() {
+  const code = generatePythonSource();
+  const blob = new Blob([code], { type: 'text/x-python;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'funpay_lots.py';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Файл funpay_lots.py скачан на компьютер');
+}
+
+async function copyPythonScript() {
+  const code = generatePythonSource();
+  try {
+    await navigator.clipboard.writeText(code);
+    showToast('Python-код скопирован в буфер обмена!');
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('Python-код скопирован в буфер обмена!');
+    } catch (e) {
+      showToast('Не удалось скопировать — выделите код вручную', false);
+    }
+    ta.remove();
+  }
+}
+
+let toastTimer = null;
+function showToast(msg, isSuccess = true) {
+  const toast = document.getElementById('toast');
+  const text = document.getElementById('toast-text');
+  const icon = document.getElementById('toast-icon');
+
+  text.textContent = msg;
+  icon.innerHTML = `<i data-lucide="${isSuccess ? 'check' : 'alert-circle'}" class="w-5 h-5"></i>`;
+  icon.className = isSuccess ? 'text-mint' : 'text-rose';
+  lucide.createIcons();
+
+  toast.classList.remove('translate-y-24', 'opacity-0');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.add('translate-y-24', 'opacity-0');
+  }, 2600);
+}
+
+// Bind download & copy buttons
+['nav-btn-download', 'btn-download-py', 'code-btn-download', 'hub-btn-direct'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', downloadPythonScript);
+});
+
+['nav-btn-copy', 'btn-copy-py', 'code-btn-copy'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', copyPythonScript);
+});
+
+/* ==========================================================================
+   TERMINAL SIMULATION LOGIC
+   ========================================================================== */
+
+const terminalBody = document.getElementById('terminal-body');
+const simStatusIndicator = document.getElementById('sim-status-indicator');
+let simTimeouts = [];
+let simIntervals = [];
+
+function clearSimulation() {
+  simTimeouts.forEach(t => clearTimeout(t));
+  simIntervals.forEach(i => clearInterval(i));
+  simTimeouts = [];
+  simIntervals = [];
+  terminalBody.innerHTML = '';
+}
+
+function appendTerminalLine(text, type = 'normal') {
+  const div = document.createElement('div');
+  div.className = 'whitespace-pre-wrap break-words leading-relaxed';
+
+  if (type === 'head') div.className += ' text-gold font-bold';
+  else if (type === 'ok') div.className += ' text-mint';
+  else if (type === 'info') div.className += ' text-azure';
+  else if (type === 'dim') div.className += ' text-faint';
+  else if (type === 'err') div.className += ' text-rose';
+  else div.className += ' text-dim';
+
+  terminalBody.appendChild(div);
+
+  // Typewriter effect
+  let charIdx = 0;
+  const interval = setInterval(() => {
+    charIdx += 4;
+    div.textContent = text.slice(0, charIdx);
+    terminalBody.scrollTop = terminalBody.scrollHeight;
+    if (charIdx >= text.length) {
+      clearInterval(interval);
+    }
+  }, 12);
+  simIntervals.push(interval);
+}
+
+function runSimulation() {
+  clearSimulation();
+  simStatusIndicator.innerHTML = '<span class="size-2 rounded-full bg-mint dot-live"></span> <span>выполняется</span>';
+
+  const prices = getCalculatedPrices();
+  const maxDisplay = 14;
+  const runPrices = prices.slice(0, maxDisplay);
+  const total = prices.length;
+
+  const steps = [
+    { text: '====================================================', type: 'dim', delay: 200 },
+    { text: '  FUNPAY LOT FORGE - Массовое создание лотов', type: 'head', delay: 400 },
+    { text: '====================================================', type: 'dim', delay: 250 },
+    { text: `[*] GET ${state.categoryUrl}`, type: 'info', delay: 600 },
+    { text: '[+] CSRF Token: 8f3ac4d2e1b994f7...', type: 'ok', delay: 400 },
+    { text: '[+] Node ID:    2147', type: 'ok', delay: 350 },
+    { text: '[+] Endpoint:   https://funpay.com/lots/offerSave', type: 'ok', delay: 350 },
+    { text: `[*] Лотов к созданию: ${total} (шаг ${state.priceStep} руб.)`, type: 'info', delay: 500 },
+    { text: '----------------------------------------------------', type: 'dim', delay: 200 },
+  ];
+
+  runPrices.forEach((p, idx) => {
+    steps.push({ text: `[+] Успешно создан лот за ${p} руб.`, type: 'ok', delay: 500 });
+    if (idx < runPrices.length - 1) {
+      const randomPause = (Math.random() * (7.5 - 3.5) + 3.5).toFixed(1);
+      steps.push({ text: `[*] Антифрод-пауза: ${randomPause} сек...`, type: 'dim', delay: 380 });
+    }
+  });
+
+  if (prices.length > maxDisplay) {
+    steps.push({ text: `... [скрыто ещё ${prices.length - maxDisplay} лотов] ...`, type: 'dim', delay: 300 });
+  }
+
+  steps.push({ text: '====================================================', type: 'dim', delay: 300 });
+  steps.push({ text: `[*] Итог прогона: успешно создано ${total} из ${total} (ошибок: 0)`, type: 'head', delay: 200 });
+
+  let cumulativeTime = 200;
+  steps.forEach(step => {
+    const t = setTimeout(() => {
+      appendTerminalLine(step.text, step.type);
+    }, cumulativeTime);
+    simTimeouts.push(t);
+    cumulativeTime += step.delay;
+  });
+
+  const finalTimeout = setTimeout(() => {
+    simStatusIndicator.innerHTML = '<span class="size-2 rounded-full bg-gold"></span> <span class="text-gold">завершено (0)</span>';
+  }, cumulativeTime + 400);
+  simTimeouts.push(finalTimeout);
+}
+
+function restartSimulation() {
+  runSimulation();
+}
+
+document.getElementById('btn-replay-sim').addEventListener('click', restartSimulation);
+
+/* ==========================================================================
+   INITIALIZATION & INTERSECTION OBSERVERS
+   ========================================================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+  lucide.createIcons();
+  bindInputs();
+  updateApp();
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+  // Trigger terminal simulation when scrolled into view
+  const simObserver = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        runSimulation();
+        simObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.2 });
+
+  const simSection = document.getElementById('section-sim');
+  if (simSection) simObserver.observe(simSection);
+});
+
+/* ==========================================================================
+   FUNPAY CATEGORY PARSER + ADVANCED SETTINGS
+   ========================================================================== */
+
+/** Прокси-мосты: браузер не может ходить на funpay.com напрямую (CORS) */
+const CORS_BRIDGES = [
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+  u => `https://r.jina.ai/${u}`
+];
+
+function setCatStatus(msg, kind = 'info') {
+  const box = document.getElementById('cat-parse-status');
+  const palette = {
+    info: 'text-azure border-azure/30 bg-azure/5',
+    ok:   'text-mint border-mint/30 bg-mint/5',
+    err:  'text-rose border-rose/30 bg-rose/5',
+    warn: 'text-gold border-gold/30 bg-gold/5'
+  };
+  box.className = `font-mono text-xs px-3 py-2 rounded-lg border ${palette[kind]}`;
+  box.textContent = msg;
+  box.classList.remove('hidden');
+}
+
+/** Нормализует ввод: ссылка, "lots/265", либо просто ID */
+function normalizeCategoryInput(raw) {
+  const value = (raw || '').trim();
+  if (!value) return null;
+  if (/^\d+$/.test(value)) return `https://funpay.com/lots/${value}/`;
+  const m = value.match(/(lots|chips|games)\/(\d+)/);
+  if (m) return `https://funpay.com/${m[1]}/${m[2]}/`;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://funpay.com/lots/${encodeURIComponent(value)}/`;
+}
+
+async function fetchViaBridge(url) {
+  let lastError = null;
+  for (const bridge of CORS_BRIDGES) {
+    try {
+      const res = await fetch(bridge(url), {
+        headers: { 'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8' }
+      });
+      if (!res.ok) { lastError = new Error('HTTP ' + res.status); continue; }
+      const text = await res.text();
+      if (text && text.length > 400) return text;
+      lastError = new Error('пустой ответ');
+    } catch (e) { lastError = e; }
+  }
+  throw lastError || new Error('все прокси недоступны');
+}
+
+async function parseCategories() {
+  const url = normalizeCategoryInput(document.getElementById('input-category-query').value);
+  if (!url) { setCatStatus('Введите ссылку или ID категории FunPay', 'err'); return; }
+
+  const btn = document.getElementById('btn-parse-categories');
+  btn.disabled = true;
+  btn.style.opacity = '.6';
+  setCatStatus(`Запрашиваю ${url} через анонимный мост...`, 'info');
+
+  try {
+    const html = await fetchViaBridge(url);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    const found = new Map();
+    doc.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href') || '';
+      const m = href.match(/\/(lots|chips)\/(\d+)\//);
+      if (!m) return;
+      const title = (a.textContent || '').trim().replace(/\s+/g, ' ');
+      if (!title || title.length > 70) return;
+      if (!found.has(m[2])) {
+        found.set(m[2], { id: m[2], name: title, kind: m[1] });
+      }
+    });
+
+    const pageTitle = (doc.querySelector('title')?.textContent || '').trim();
+    const list = Array.from(found.values());
+
+    if (!list.length) {
+      setCatStatus('Категории не найдены — страница могла отдать заглушку. Добавьте категорию вручную ниже.', 'warn');
+    } else {
+      state.categories = list;
+      renderCategories();
+      setCatStatus(`Готово: найдено ${list.length} категорий${pageTitle ? ' · ' + pageTitle.slice(0, 40) : ''}`, 'ok');
+      showToast(`Загружено категорий: ${list.length}`);
+    }
+  } catch (err) {
+    setCatStatus(`Не удалось загрузить: ${err.message}. FunPay блокирует прямые браузерные запросы — используйте режим "python funpay_lots.py --categories" или добавьте категорию вручную.`, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+  }
+}
+
+function renderCategories() {
+  const box = document.getElementById('category-list');
+  const counter = document.getElementById('cat-count-label');
+  box.innerHTML = '';
+
+  if (!state.categories.length) {
+    box.innerHTML = '<span class="text-xs font-mono text-faint">Нажмите «Загрузить категории» или добавьте свою вручную ниже.</span>';
+    counter.textContent = 'не загружено';
+    return;
+  }
+
+  counter.textContent = `${state.categories.length} шт.`;
+  state.categories.forEach((cat, i) => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip-pop group flex items-center gap-2 px-3 py-1.5 rounded-lg border border-edge bg-panel font-mono text-[11px] text-dim hover:text-gold hover:border-gold/50 transition-colors';
+    chip.style.animationDelay = (Math.min(i, 25) * 0.02) + 's';
+    chip.innerHTML = `<span class="text-gold font-bold">${cat.id}</span><span>${cat.name}</span>`;
+    chip.addEventListener('click', () => selectCategory(cat));
+    box.appendChild(chip);
+  });
+}
+
+function selectCategory(cat) {
+  state.nodeId = cat.id;
+  state.categoryUrl = `https://funpay.com/${cat.kind || 'lots'}/${cat.id}/`;
+  document.getElementById('input-node-id').value = cat.id;
+  document.getElementById('input-category-url').value = state.categoryUrl;
+  document.getElementById('selected-category-label').textContent = `${cat.name} · node_id=${cat.id}`;
+  updateApp();
+  showToast(`Категория выбрана: ${cat.name}`);
+}
+
+/* ---------- Доп. поля категории ---------- */
+function renderExtraFields() {
+  const box = document.getElementById('extra-fields-list');
+  box.innerHTML = '';
+
+  if (!state.extraFields.length) {
+    box.innerHTML = '<p class="text-xs font-mono text-faint">Полей нет — скрипт отправит только базовые поля лота.</p>';
+    return;
+  }
+
+  state.extraFields.forEach((f, idx) => {
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-12 gap-2 items-center chip-pop';
+    row.innerHTML = `
+      <input type="text" class="custom-input col-span-5 rounded-lg px-3 py-2 font-mono text-[11px]" placeholder="fields[type]" value="${(f.name || '').replace(/"/g, '&quot;')}">
+      <input type="text" class="custom-input col-span-6 rounded-lg px-3 py-2 font-mono text-[11px]" placeholder="значение (например 1)" value="${(f.value || '').replace(/"/g, '&quot;')}">
+      <button class="col-span-1 grid place-items-center size-9 rounded-lg border border-edge bg-surface text-rose hover:border-rose/50 transition-colors" title="Удалить">
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+      </button>`;
+    const [nameInput, valueInput] = row.querySelectorAll('input');
+    nameInput.addEventListener('input', e => { state.extraFields[idx].name = e.target.value; updateApp(); });
+    valueInput.addEventListener('input', e => { state.extraFields[idx].value = e.target.value; updateApp(); });
+    row.querySelector('button').addEventListener('click', () => {
+      state.extraFields.splice(idx, 1);
+      renderExtraFields();
+      updateApp();
+    });
+    box.appendChild(row);
+  });
+  lucide.createIcons();
+}
+
+/* ---------- Привязка всех расширенных настроек ---------- */
+(function bindAdvanced() {
+  const on = (id, evt, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(evt, fn);
+  };
+
+  on('btn-parse-categories', 'click', parseCategories);
+  on('input-category-query', 'keydown', e => { if (e.key === 'Enter') parseCategories(); });
+
+  on('btn-add-category', 'click', () => {
+    const name = document.getElementById('input-manual-cat-name').value.trim();
+    const id = document.getElementById('input-manual-cat-id').value.trim();
+    if (!name || !id) { showToast('Заполните название и node_id категории', false); return; }
+    state.categories.unshift({ id, name, kind: 'lots' });
+    renderCategories();
+    selectCategory({ id, name, kind: 'lots' });
+    document.getElementById('input-manual-cat-name').value = '';
+    document.getElementById('input-manual-cat-id').value = '';
+  });
+
+  on('input-node-id', 'input', e => {
+    state.nodeId = e.target.value.trim();
+    document.getElementById('selected-category-label').textContent =
+      state.nodeId ? `ручной ввод · node_id=${state.nodeId}` : 'не выбрана (node_id берётся из формы)';
+    updateApp();
+  });
+
+  on('input-csrf-token', 'input', e => { state.csrfToken = e.target.value.trim(); updateApp(); });
+  on('input-proxy', 'input', e => { state.proxy = e.target.value.trim(); updateApp(); });
+  on('input-pause-min', 'input', e => { state.pauseMin = e.target.value; updateApp(); });
+  on('input-pause-max', 'input', e => { state.pauseMax = e.target.value; updateApp(); });
+  on('input-retries', 'input', e => { state.retries = e.target.value; updateApp(); });
+  on('input-dump-fields', 'change', e => { state.dumpFields = e.target.checked; updateApp(); });
+  on('input-active-lot', 'change', e => { state.activeLot = e.target.checked; updateApp(); });
+  on('input-auto-translate', 'change', e => { state.autoTranslate = e.target.checked; updateApp(); });
+  on('select-translator', 'change', e => { state.translator = e.target.value; updateApp(); });
+  on('input-lang-from', 'input', e => { state.langFrom = e.target.value.trim() || 'ru'; updateApp(); });
+  on('input-lang-to', 'input', e => { state.langTo = e.target.value.trim() || 'en'; updateApp(); });
+
+  on('btn-add-extra-field', 'click', () => {
+    state.extraFields.push({ name: '', value: '' });
+    renderExtraFields();
+    updateApp();
+  });
+
+  document.querySelectorAll('.quick-field-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const name = btn.getAttribute('data-fname');
+      if (state.extraFields.some(f => f.name === name)) {
+        showToast('Такое поле уже добавлено', false);
+        return;
+      }
+      state.extraFields.push({ name, value: btn.getAttribute('data-fvalue') || '' });
+      renderExtraFields();
+      updateApp();
+    });
+  });
+
+  // Синхронизация описания из textarea (многострочного)
+  const descEl = document.getElementById('input-lot-desc');
+  if (descEl) {
+    state.lotDesc = descEl.value;
+    descEl.addEventListener('input', e => { state.lotDesc = e.target.value; updateApp(); });
+  }
+
+  renderExtraFields();
+  renderCategories();
+  updateApp();
+})();
+
+/* ==========================================================================
+   GLOWING CUSTOM CURSOR
+   ========================================================================== */
+(function initCursor() {
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  const dot = document.getElementById('cursor-dot');
+  const ring = document.getElementById('cursor-ring');
+  let mx = -100, my = -100, rx = -100, ry = -100;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.transform = `translate(${mx - 3.5}px, ${my - 3.5}px) rotate(0.01deg)`;
+  }, { passive: true });
+
+  (function loop() {
+    rx += (mx - rx) * 0.16;
+    ry += (my - ry) * 0.16;
+    const half = ring.offsetWidth / 2;
+    ring.style.transform = `translate(${rx - half}px, ${ry - half}px) rotate(0.01deg)`;
+    requestAnimationFrame(loop);
+  })();
+
+  document.addEventListener('mousedown', () => ring.classList.add('press'));
+  document.addEventListener('mouseup', () => ring.classList.remove('press'));
+
+  document.addEventListener('mouseover', e => {
+    const t = e.target.closest('a, button, summary, input, textarea, select, .chip-pop, [type="range"]');
+    ring.classList.toggle('grow', !!t);
+  });
+})();
+
+/* ==========================================================================
+   THEME TOGGLE (dark <-> light, persisted)
+   ========================================================================== */
+(function initTheme() {
+  const htmlEl = document.documentElement;
+  const btn = document.getElementById('theme-toggle');
+
+  function applyTheme(theme, animate = true) {
+    if (theme === 'light') {
+      htmlEl.classList.add('light');
+      btn.innerHTML = '<i data-lucide="moon" class="w-5 h-5"></i>';
+    } else {
+      htmlEl.classList.remove('light');
+      btn.innerHTML = '<i data-lucide="sun" class="w-5 h-5"></i>';
+    }
+    try { localStorage.setItem('lotforge-theme', theme); } catch (e) {}
+    lucide.createIcons();
+    if (animate) {
+      btn.style.transition = 'transform .4s cubic-bezier(.34,1.56,.64,1)';
+      btn.style.transform = 'rotate(360deg) scale(1.15)';
+      setTimeout(() => { btn.style.transform = ''; }, 400);
+    }
+  }
+
+  let saved = 'dark';
+  try { saved = localStorage.getItem('lotforge-theme') || 'dark'; } catch (e) {}
+  applyTheme(saved, false);
+  btn.addEventListener('click', () =>
+    applyTheme(htmlEl.classList.contains('light') ? 'dark' : 'light'));
+})();
+
+/* ==========================================================================
+   SCROLL REVEAL + ENTRANCE ANIMATIONS
+   ========================================================================== */
+(function initAnimations() {
+  // Hero entrance: staggered fade-up on load
+  const heroKids = document.querySelectorAll('#hero .max-w-7xl > *');
+  heroKids.forEach((el, i) => {
+    el.classList.add('load-anim');
+    el.style.animationDelay = (0.08 * i) + 's';
+  });
+
+  // Soft floating on hero summary card
+  const heroCard = document.querySelector('#hero .rounded-2xl');
+  if (heroCard) { heroCard.classList.add('soft-float'); heroCard.style.animationDelay = '1s'; }
+
+  // Reveal targets across all sections (except hero)
+  const selectors = [
+    'section:not(#hero) h2',
+    'section:not(#hero) .card-hover',
+    '#section-configurator .rounded-2xl',
+    '#section-code .rounded-2xl',
+    '#section-downloads .rounded-2xl',
+    '#section-risks .rounded-2xl',
+    '#section-sim .rounded-2xl',
+    '#section-faq details'
+  ];
+  const targets = new Set();
+  selectors.forEach(sel => document.querySelectorAll(sel).forEach(el => targets.add(el)));
+  targets.forEach((el, i) => {
+    el.classList.add('reveal');
+    el.style.transitionDelay = ((i % 4) * 0.09) + 's';
+  });
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+  targets.forEach(el => io.observe(el));
+
+  // Pop-in animation for dynamically generated price chips
+  const chipsObserver = new MutationObserver(() => {
+    document.querySelectorAll('#calc-price-chips span').forEach((chip, i) => {
+      if (!chip.dataset.popped) {
+        chip.dataset.popped = '1';
+        chip.classList.add('chip-pop');
+        chip.style.animationDelay = (Math.min(i, 30) * 0.02) + 's';
+      }
+    });
+  });
+  const chipsBox = document.getElementById('calc-price-chips');
+  if (chipsBox) chipsObserver.observe(chipsBox, { childList: true });
+})();
+</script>
+
+</body>
+</html>
